@@ -9,8 +9,7 @@ using OpenHardwareMonitor.Hardware;
 
 namespace Hardware2VRCOSC {
     internal class HardwareInfoRedirector : IDisposable {
-        static readonly Regex oscNameSanitizer = new(@"[^a-zA-Z0-9_]+", RegexOptions.Compiled);
-        readonly Dictionary<HardwareSensorType, HardwareSensorRedirectConfig> configs = new();
+        const string PREFIX = "/hardwares";
         readonly HashSet<HardwareType> watchingHardwares = new();
         readonly Computer computer;
         readonly HashSet<IHardware> hardwares = new();
@@ -20,204 +19,153 @@ namespace Hardware2VRCOSC {
         UdpClient? udpClient;
         bool isDisposed;
 
-        public int UpdateInterval { get; set; } = 1000;
+        public int UpdateInterval { get; set; }
 
-        public Thread ReadThread => readThread;
+        public string IP { get; set; }
 
-        public HardwareInfoRedirector() {
-            computer = new Computer();
+        public int Port { get; set; }
+
+        public bool RAMEnabled { get => computer.RAMEnabled; set => computer.RAMEnabled = value; }
+
+        public bool MainboardEnabled { get => computer.MainboardEnabled; set => computer.MainboardEnabled = value; }
+
+        public bool CPUEnabled { get => computer.CPUEnabled; set => computer.CPUEnabled = value; }
+
+        public bool GPUEnabled { get => computer.GPUEnabled; set => computer.GPUEnabled = value; }
+
+        public bool HDDEnabled { get => computer.HDDEnabled; set => computer.HDDEnabled = value; }
+
+        public bool FanControllerEnabled { get => computer.FanControllerEnabled; set => computer.FanControllerEnabled = value; }
+
+        public bool NetworkEnabled { get => computer.NetworkEnabled; set => computer.NetworkEnabled = value; }
+
+        public HardwareInfoRedirector() : this(Config.defaultConfig) {}
+
+        public HardwareInfoRedirector(Config config) {
+            UpdateInterval = config.updateInterval;
+            IP = config.ipAddress;
+            Port = config.port;
+            computer = new Computer {
+                RAMEnabled = config.ram,
+                MainboardEnabled = config.mainboard,
+                CPUEnabled = config.cpu,
+                GPUEnabled = config.gpu,
+                HDDEnabled = config.hdd,
+                FanControllerEnabled = config.fanController,
+                NetworkEnabled = config.network,
+            };
             computer.HardwareAdded += OnHardwareAdded;
             computer.HardwareRemoved += OnHardwareRemoved;
             computer.Open();
             foreach (var hardaware in computer.Hardware) OnHardwareAdded(hardaware);
             readThread = new Thread(ReadHardware);
             readThread.Start();
+            if (!string.IsNullOrEmpty(config.ipAddress) && config.port > 0) Connect();
         }
 
-        public void Connect(string ip = "127.0.0.1", int port = 9000) {
+        public void UpdateConfig(Config config) {
+            computer.GPUEnabled = config.gpu;
+            computer.CPUEnabled = config.cpu;
+            computer.RAMEnabled = config.ram;
+            computer.MainboardEnabled = config.mainboard;
+            computer.HDDEnabled = config.hdd;
+            computer.FanControllerEnabled = config.fanController;
+            computer.NetworkEnabled = config.network;
+            UpdateInterval = config.updateInterval;
+            if (IP != config.ipAddress || Port != config.port) {
+                Disconnect();
+                IP = config.ipAddress;
+                Port = config.port;
+                if (!string.IsNullOrEmpty(config.ipAddress) && config.port > 0) Connect();
+            } 
+        }
+
+        public void Connect() {
             if (isDisposed) throw new ObjectDisposedException(nameof(HardwareInfoRedirector));
-            udpClient = new UdpClient(ip, port);
+            Console.WriteLine($"Connecting to {IP}:{Port}");
+            udpClient = new UdpClient(IP, Port);
         }
 
         public void Disconnect() {
+            Console.WriteLine($"Disconnecting from {IP}:{Port}");
             udpClient?.Close();
             udpClient = null;
-        }
-
-        public void UpdateConfig(HardwareSensorRedirectConfig config) {
-            if (isDisposed) throw new ObjectDisposedException(nameof(HardwareInfoRedirector));
-            configs[new HardwareSensorType(config.hardwareType, config.sensorType)] = config;
-            watchingHardwares.Add(config.hardwareType);
-            switch (config.hardwareType) {
-                case HardwareType.Mainboard: computer.MainboardEnabled = true; break;
-                case HardwareType.CPU: computer.CPUEnabled = true; break;
-                case HardwareType.RAM: computer.RAMEnabled = true; break;
-                case HardwareType.GpuAti:
-                case HardwareType.GpuNvidia: computer.GPUEnabled = true; break;
-                case HardwareType.HDD: computer.HDDEnabled = true; break;
-                case HardwareType.TBalancer:
-                case HardwareType.Heatmaster: computer.FanControllerEnabled = true; break;
-                case HardwareType.Network: computer.NetworkEnabled = true; break;
-            }
-        }
-
-        public void OverwriteConfigs(IEnumerable<HardwareSensorRedirectConfig> newConfigs) {
-            if (isDisposed) throw new ObjectDisposedException(nameof(HardwareInfoRedirector));
-            configs.Clear();
-            watchingHardwares.Clear();
-            foreach (var config in newConfigs) UpdateConfig(config);
-        }
-
-        public void RemoveConfig(HardwareSensorRedirectConfig config) {
-            if (isDisposed) throw new ObjectDisposedException(nameof(HardwareInfoRedirector));
-            configs.Remove(new HardwareSensorType(config.hardwareType, config.sensorType, config.hardwareName, config.sensorName));
-            var hasThisHardware = false;
-            foreach (var key in configs.Keys)
-                if (key.hardwareType == config.hardwareType) {
-                    hasThisHardware = true;
-                    break;
-                }
-            if (!hasThisHardware) watchingHardwares.Remove(config.hardwareType);
         }
 
         public void Dispose() {
+            isDisposed = true;
             udpClient?.Close();
+            udpClient = null;
             computer?.Close();
             sensors.Clear();
             hardwares.Clear();
-            isDisposed = true;
-            udpClient = null;
         }
 
         void OnHardwareAdded(IHardware hardware) {
-            Console.WriteLine($"Hardware added: <{hardware.HardwareType}> {hardware.Name}");
-            hardwares.Add(hardware);
+            if (!hardwares.Add(hardware)) return;
+            Console.WriteLine($"Hardware watched: <{hardware.HardwareType}> {hardware.Name}");
             hardware.SensorAdded += OnSensorAdded;
             hardware.SensorRemoved += OnSensorRemoved;
             foreach (var sensor in hardware.Sensors) OnSensorAdded(sensor);
         }
 
         void OnHardwareRemoved(IHardware hardware) {
-            Console.WriteLine($"Hardware removed: <{hardware.HardwareType}> {hardware.Name}");
-            hardwares.Remove(hardware);
+            if (hardwares.Remove(hardware))
+                Console.WriteLine($"Hardware unwatched: <{hardware.HardwareType}> {hardware.Name}");
             hardware.SensorAdded -= OnSensorAdded;
             hardware.SensorRemoved -= OnSensorRemoved;
             foreach (var sensor in hardware.Sensors) OnSensorRemoved(sensor);
         }
 
         void OnSensorAdded(ISensor sensor) {
-            Console.WriteLine($"Sensor added: <{sensor.SensorType}> {sensor.Name}");
-            sensors.Add(sensor);
+            if (!sensors.Add(sensor)) return;
+            Console.WriteLine($"Sensor watched: <{sensor.SensorType}> {sensor.Name}");
             Console.WriteLine("Available OSC channels:");
-            var hardware = sensor.Hardware;
-            var hardwareName = Sanitize(hardware.Name);
-            var sensorName = Sanitize(sensor.Name);
-            Console.WriteLine($"> /hardwares/{hardware.HardwareType}/{sensor.SensorType}");
-            Console.WriteLine($"> /hardwares/{hardwareName}/{sensor.SensorType}");
-            Console.WriteLine($"> /hardwares/{hardware.HardwareType}/{sensorName}/{sensor.SensorType}");
-            Console.WriteLine($"> /hardwares/{hardwareName}/{sensorName}/{sensor.SensorType}");
+            Console.WriteLine($"> {PREFIX}{sensor.Identifier}");
+            Console.WriteLine($"> {PREFIX}{sensor.Identifier}/min");
+            Console.WriteLine($"> {PREFIX}{sensor.Identifier}/max");
         }
 
         void OnSensorRemoved(ISensor sensor) {
-            Console.WriteLine($"Sensor removed: <{sensor.SensorType}> {sensor.Name}");
-            sensors.Remove(sensor);
+            if (sensors.Remove(sensor))
+                Console.WriteLine($"Sensor unwatched: <{sensor.SensorType}> {sensor.Name}");
         }
 
         void ReadHardware() {
             while (!isDisposed) {
-                if (udpClient != null) {
-                    foreach (var hardware in hardwares)
-                        if (watchingHardwares.Contains(hardware.HardwareType))
+                try {
+                    if (udpClient != null) {
+                        foreach (var hardware in hardwares)
                             hardware.Update();
-                    foreach (var sensor in sensors) {
-                        var hardware = sensor.Hardware;
-                        if (!FindSensorConfig(sensor, out var config)) continue;
-                        sb.Clear();
-                        sb.Append("/hardwares/");
-                        if (!string.IsNullOrEmpty(config.hardwareName)) sb.Append(Sanitize(config.hardwareName)).Append('/');
-                        else sb.Append(hardware.HardwareType).Append('/');
-                        if (!string.IsNullOrEmpty(config.sensorName)) sb.Append(Sanitize(config.sensorName)).Append('/');
-                        sb.Append(sensor.SensorType);
-                        var channel = sb.ToString();
-                        if (sensor.Value.HasValue)
-                            udpClient.Send(new OscMessage(channel, ClampLerpValue((float)sensor.Value, config)).ToByteArray());
-                        if (config.sendMin && sensor.Min.HasValue)
-                            udpClient.Send(new OscMessage($"{channel}/min", ClampLerpValue((float)sensor.Min, config)).ToByteArray());
-                        if (config.sendMax && sensor.Max.HasValue)
-                            udpClient.Send(new OscMessage($"{channel}/max", ClampLerpValue((float)sensor.Max, config)).ToByteArray());
+                        foreach (var sensor in sensors) {
+                            var hardware = sensor.Hardware;
+                            var sensorType = sensor.SensorType;
+                            var channel = $"{PREFIX}{sensor.Identifier}";
+                            if (sensor.Value.HasValue)
+                                udpClient.Send(new OscMessage(channel, ClampLerpValue((float)sensor.Value, sensorType)).ToByteArray());
+                            if (sensor.Min.HasValue)
+                                udpClient.Send(new OscMessage($"{channel}/min", ClampLerpValue((float)sensor.Min, sensorType)).ToByteArray());
+                            if (sensor.Max.HasValue)
+                                udpClient.Send(new OscMessage($"{channel}/max", ClampLerpValue((float)sensor.Max, sensorType)).ToByteArray());
+                        }
                     }
+                } catch (Exception e) {
+                    Console.WriteLine(e);
                 }
                 Thread.Sleep(UpdateInterval);
             }
         }
 
-        bool FindSensorConfig(ISensor sensor, out HardwareSensorRedirectConfig config) {
-            var hardware = sensor.Hardware;
-            var hardwareSensorType = new HardwareSensorType(hardware.HardwareType, sensor.SensorType, hardware.Name, sensor.Name);
-            if (configs.TryGetValue(hardwareSensorType, out config)) return true;
-            hardwareSensorType = new HardwareSensorType(hardware.HardwareType, sensor.SensorType, hardware.Name);
-            if (configs.TryGetValue(hardwareSensorType, out config)) return true;
-            hardwareSensorType = new HardwareSensorType(hardware.HardwareType, sensor.SensorType, sensorName: sensor.Name);
-            if (configs.TryGetValue(hardwareSensorType, out config)) return true;
-            hardwareSensorType = new HardwareSensorType(hardware.HardwareType, sensor.SensorType);
-            if (configs.TryGetValue(hardwareSensorType, out config)) return true;
-            return false;
-
-        }
-
-        static string Sanitize(string name) => oscNameSanitizer.Replace(name, "_");
-
-        static float ClampLerpValue(float value, HardwareSensorRedirectConfig config) {
-            if (config.maxValue > config.minValue) {
-                if (value < config.minValue)
-                    value = config.minValue;
-                else if (value > config.maxValue)
-                    value = config.maxValue;
-                else
-                    value = (value - config.minValue) / (config.maxValue - config.minValue);
-            }
-            return value;
-        }
-    }
-
-    public readonly struct HardwareSensorType : IEquatable<HardwareSensorType> {
-        public readonly HardwareType hardwareType;
-        public readonly string hardwareName;
-        public readonly SensorType sensorType;
-        public readonly string sensorName;
-
-        public HardwareSensorType(HardwareType hardwareType, SensorType sensorType, string hardwareName = "", string sensorName = "") {
-            this.hardwareType = hardwareType;
-            this.hardwareName = hardwareName ?? "";
-            this.sensorType = sensorType;
-            this.sensorName = sensorName ?? "";
-        }
-
-        public bool Equals(HardwareSensorType other) =>
-            hardwareType == other.hardwareType &&
-            sensorType == other.sensorType &&
-            hardwareName == other.hardwareName &&
-            sensorName == other.sensorName;
-
-        public override bool Equals(object obj) => obj is HardwareSensorType other && Equals(other);
-
-        public override int GetHashCode() {
-            unchecked {
-                var hashCode = (int)hardwareType;
-                hashCode = (hashCode * 397) ^ (hardwareName != null ? hardwareName.GetHashCode() : 0);
-                hashCode = (hashCode * 397) ^ (int)sensorType;
-                hashCode = (hashCode * 397) ^ (sensorName != null ? sensorName.GetHashCode() : 0);
-                return hashCode;
+        static float ClampLerpValue(float value, SensorType sensorType) {
+            switch (sensorType) {
+                case SensorType.Load:
+                case SensorType.Control:
+                case SensorType.Level:
+                case SensorType.Temperature:
+                    return value / 100F;
+                default:
+                    return value;
             }
         }
-    }
-
-    public struct HardwareSensorRedirectConfig {
-        public HardwareType hardwareType;
-        public string hardwareName;
-        public SensorType sensorType;
-        public string sensorName;
-        public bool sendMin, sendMax;
-        public float minValue, maxValue;
     }
 }
