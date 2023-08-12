@@ -4,16 +4,18 @@ using YamlDotNet.Serialization;
 
 namespace Hardware2VRCOSC {
     internal static class Program {
+        const string CONFIG_FILE_NAME = "config.yml";
         static HardwareInfoRedirector redirector;
 
         [STAThread]
         static void Main() {
+            Console.WriteLine("Starting hardware info to VRChat OSC reporter");
             try {
                 redirector = new HardwareInfoRedirector(GetConfig());
             } catch (Exception ex) {
                 Console.WriteLine(ex);
             }
-            var fileWatcher = new FileSystemWatcher(Environment.CurrentDirectory, "config.yml") {
+            var fileWatcher = new FileSystemWatcher(Environment.CurrentDirectory, CONFIG_FILE_NAME) {
                 NotifyFilter = NotifyFilters.Attributes |
                                 NotifyFilters.CreationTime |
                                 NotifyFilters.DirectoryName |
@@ -40,7 +42,7 @@ namespace Hardware2VRCOSC {
         }
 
         static Config GetConfig() {
-            var configPath = Path.Combine(Environment.CurrentDirectory, "config.yml");
+            var configPath = Path.Combine(Environment.CurrentDirectory, CONFIG_FILE_NAME);
             Config config;
             if (!File.Exists(configPath)) {
                 Console.WriteLine("Config not found, creating one...");

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Net.Sockets;
 using OscCore;
 using OpenHardwareMonitor.Hardware;
