@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using YamlDotNet.Serialization;
 
 namespace Hardware2VRCOSC {
@@ -48,12 +49,12 @@ namespace Hardware2VRCOSC {
                 Console.WriteLine("Config not found, creating one...");
                 config = Config.defaultConfig;
                 using (var stream = new FileStream(configPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                using (var stringWriter = new StreamWriter(stream, System.Text.Encoding.UTF8))
-                    new Serializer().Serialize(stringWriter, config);
+                using (var writer = new StreamWriter(stream, Encoding.UTF8))
+                    new Serializer().Serialize(writer, config);
             } else
                 using (var stream = new FileStream(configPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (var stringReader = new StreamReader(stream, System.Text.Encoding.UTF8))
-                    config = new Deserializer().Deserialize<Config>(stringReader);
+                using (var reader = new StreamReader(stream, Encoding.UTF8))
+                    config = new Deserializer().Deserialize<Config>(reader);
             return config;
         }
     }
