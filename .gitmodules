@@ -1,0 +1,3 @@
+[submodule "openhardwaremonitor"]
+	path = openhardwaremonitor
+	url = git@github.com:hexagon-oss/openhardwaremonitor.git

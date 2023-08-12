@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33723.286
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenHardwareMonitorLib", "openhardwaremonitor\OpenHardwareMonitorLib\OpenHardwareMonitorLib.csproj", "{0DCCA734-0B69-4D2A-B147-546B2B2823EF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "方案項目", "方案項目", "{2D4907FB-9F09-499C-B845-B8E767CFF9FB}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hardware2VRCOSC", "Hardware2VRCOSC\Hardware2VRCOSC.csproj", "{B516C5D3-51D4-4BD8-8219-FEAACDC841B3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0DCCA734-0B69-4D2A-B147-546B2B2823EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0DCCA734-0B69-4D2A-B147-546B2B2823EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0DCCA734-0B69-4D2A-B147-546B2B2823EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0DCCA734-0B69-4D2A-B147-546B2B2823EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B516C5D3-51D4-4BD8-8219-FEAACDC841B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B516C5D3-51D4-4BD8-8219-FEAACDC841B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B516C5D3-51D4-4BD8-8219-FEAACDC841B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B516C5D3-51D4-4BD8-8219-FEAACDC841B3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1442C32C-68F2-4309-AC49-1A5D70748C7D}
+	EndGlobalSection
+EndGlobal
