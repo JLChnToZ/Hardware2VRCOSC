@@ -63,10 +63,11 @@ namespace Hardware2VRCOSC {
         }
 
         public void UpdateConfig(Config config) {
-            computer.GPUEnabled = config.gpu;
-            computer.CPUEnabled = config.cpu;
+            if (isDisposed) throw new ObjectDisposedException(nameof(HardwareInfoRedirector));
             computer.RAMEnabled = config.ram;
             computer.MainboardEnabled = config.mainboard;
+            computer.CPUEnabled = config.cpu;
+            computer.GPUEnabled = config.gpu;
             computer.HDDEnabled = config.hdd;
             computer.FanControllerEnabled = config.fanController;
             computer.NetworkEnabled = config.network;
