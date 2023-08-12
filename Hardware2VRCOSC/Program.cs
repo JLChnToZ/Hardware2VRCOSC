@@ -1,6 +1,9 @@
 using System;
 using System.IO;
+using System.Security.Principal;
 using System.Text;
+using System.Reflection;
+using System.Diagnostics;
 using YamlDotNet.Serialization;
 
 namespace Hardware2VRCOSC {
@@ -10,6 +13,10 @@ namespace Hardware2VRCOSC {
 
         [STAThread]
         static void Main() {
+            if (!IsAdministrator()) {
+                Console.WriteLine("You are running this program as a non-administrator user.");
+                Console.WriteLine("If this program running in non-administrator mode, it may not be able to read some hardware information.");
+            }
             Console.WriteLine("Starting hardware info to VRChat OSC reporter");
             try {
                 redirector = new HardwareInfoRedirector(GetConfig());
@@ -57,5 +64,7 @@ namespace Hardware2VRCOSC {
                     config = new Deserializer().Deserialize<Config>(reader);
             return config;
         }
+
+        static bool IsAdministrator() => new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
     }
 }

@@ -15,6 +15,7 @@ namespace Hardware2VRCOSC {
         readonly HashSet<ISensor> sensors = new();
         readonly Thread readThread;
         readonly StringBuilder sb = new();
+        readonly HashSet<SensorType> filteredSensorTypes = new();
         UdpClient? udpClient;
         bool isDisposed;
 
@@ -53,6 +54,10 @@ namespace Hardware2VRCOSC {
                 FanControllerEnabled = config.fanController,
                 NetworkEnabled = config.network,
             };
+            if (config.filteredSensorTypes != null)
+                foreach (var sensorType in config.filteredSensorTypes)
+                    if (Enum.TryParse(sensorType, out SensorType type))
+                        filteredSensorTypes.Add(type);
             computer.HardwareAdded += OnHardwareAdded;
             computer.HardwareRemoved += OnHardwareRemoved;
             computer.Open();
@@ -72,6 +77,11 @@ namespace Hardware2VRCOSC {
             computer.FanControllerEnabled = config.fanController;
             computer.NetworkEnabled = config.network;
             UpdateInterval = config.updateInterval;
+            filteredSensorTypes.Clear();
+            if (config.filteredSensorTypes != null)
+                foreach (var sensorType in config.filteredSensorTypes)
+                    if (Enum.TryParse(sensorType, out SensorType type))
+                        filteredSensorTypes.Add(type);
             if (IP != config.ipAddress || Port != config.port) {
                 Disconnect();
                 IP = config.ipAddress;
@@ -140,6 +150,7 @@ namespace Hardware2VRCOSC {
                         foreach (var sensor in sensors) {
                             var hardware = sensor.Hardware;
                             var sensorType = sensor.SensorType;
+                            if (!filteredSensorTypes.Contains(sensorType)) continue;
                             var channel = $"{PREFIX}{sensor.Identifier}";
                             if (sensor.Value.HasValue)
                                 udpClient.Send(new OscMessage(channel, ClampLerpValue((float)sensor.Value, sensorType)).ToByteArray());
