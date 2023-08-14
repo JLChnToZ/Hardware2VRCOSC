@@ -15,7 +15,6 @@ namespace Hardware2VRCOSC {
         readonly HashSet<IHardware> hardwares = new();
         readonly HashSet<ISensor> sensors = new();
         readonly Thread readThread;
-        readonly HashSet<SensorType> filteredSensorTypes = new();
         readonly Dictionary<Glob, PatternConfig> patternConfigs = new();
         UdpClient? udpClient;
         bool isDisposed;
@@ -55,10 +54,6 @@ namespace Hardware2VRCOSC {
                 FanControllerEnabled = config.fanController,
                 NetworkEnabled = config.network,
             };
-            if (config.filteredSensorTypes != null)
-                foreach (var sensorType in config.filteredSensorTypes)
-                    if (Enum.TryParse(sensorType, out SensorType type))
-                        filteredSensorTypes.Add(type);
             SetPatternConfig(config.patternConfigs);
             computer.HardwareAdded += OnHardwareAdded;
             computer.HardwareRemoved += OnHardwareRemoved;
@@ -79,11 +74,6 @@ namespace Hardware2VRCOSC {
             computer.FanControllerEnabled = config.fanController;
             computer.NetworkEnabled = config.network;
             UpdateInterval = config.updateInterval;
-            filteredSensorTypes.Clear();
-            if (config.filteredSensorTypes != null)
-                foreach (var sensorType in config.filteredSensorTypes)
-                    if (Enum.TryParse(sensorType, out SensorType type))
-                        filteredSensorTypes.Add(type);
             patternConfigs.Clear();
             SetPatternConfig(config.patternConfigs);
             if (IP != config.ipAddress || Port != config.port) {
@@ -193,24 +183,23 @@ namespace Hardware2VRCOSC {
                         foreach (var hardware in hardwares)
                             hardware.Update();
                         foreach (var sensor in sensors) {
-                            var hardware = sensor.Hardware;
-                            var sensorType = sensor.SensorType;
-                            if (!filteredSensorTypes.Contains(sensorType)) continue;
                             var channel = $"{PREFIX}{sensor.Identifier}";
+                            PatternConfig matchedPattern = default;
+                            foreach (var (glob, pattern) in patternConfigs)
+                                if (glob.IsMatch(channel)) {
+                                    matchedPattern = pattern;
+                                    break;
+                                }
+                            if (matchedPattern.ignore.GetValueOrDefault(false)) continue;
                             var sensorValue = sensor.Value;
                             if (sensorValue.HasValue) {
                                 var value = (float)sensorValue.Value;
-                                foreach (var (glob, pattern) in patternConfigs)
-                                    if (glob.IsMatch(channel)) {
-                                        if (pattern.ignore.GetValueOrDefault(false)) continue;
-                                        if (pattern.min.HasValue && value < pattern.min.Value)
-                                            value = pattern.min.Value;
-                                        else if (pattern.max.HasValue && value > pattern.max.Value)
-                                            value = pattern.max.Value;
-                                        else if (pattern.min.HasValue && pattern.max.HasValue)
-                                            value = (value - pattern.min.Value) / (pattern.max.Value - pattern.min.Value);
-                                        break;
-                                    }
+                                if (matchedPattern.min.HasValue && value < matchedPattern.min.Value)
+                                    value = matchedPattern.min.Value;
+                                else if (matchedPattern.max.HasValue && value > matchedPattern.max.Value)
+                                    value = matchedPattern.max.Value;
+                                else if (matchedPattern.min.HasValue && matchedPattern.max.HasValue)
+                                    value = (value - matchedPattern.min.Value) / (matchedPattern.max.Value - matchedPattern.min.Value);
                                 udpClient.Send(new OscMessage(channel, value).ToByteArray());
                             }
                         }

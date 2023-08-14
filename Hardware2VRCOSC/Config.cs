@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using OpenHardwareMonitor.Hardware;
 
 namespace Hardware2VRCOSC {
     struct Config {
@@ -27,21 +26,20 @@ namespace Hardware2VRCOSC {
             hdd = false,
             fanController = false,
             network = false,
-            filteredSensorTypes = new[] {
-                nameof(SensorType.Temperature),
-                nameof(SensorType.Load),
-                nameof(SensorType.Control),
-                nameof(SensorType.Level),
-            },
             patternConfigs = new() {
                 { "/**/temperature/*", new PatternConfig { min = 30, max = 100 } },
                 { "/**/load/*", new PatternConfig { min = 0, max = 100 } },
                 { "/**/control/*", new PatternConfig { min = 0, max = 100 } },
                 { "/**/level/*", new PatternConfig { min = 0, max = 100 } },
                 { "/**/data/*", new PatternConfig { ignore = true } },
+                { "/**/smalldata/*", new PatternConfig { ignore = true } },
                 { "/**/rawvalue/*", new PatternConfig { ignore = true } },
                 { "/**/clock/*", new PatternConfig { ignore = true } },
                 { "/**/power/*", new PatternConfig { ignore = true } },
+                { "/**/fan/*", new PatternConfig { ignore = true } },
+                { "/**/flow/*", new PatternConfig { ignore = true } },
+                { "/**/voltage/*", new PatternConfig { ignore = true } },
+                { "/**/throughput/*", new PatternConfig { ignore = true } },
             },
         };
     }
