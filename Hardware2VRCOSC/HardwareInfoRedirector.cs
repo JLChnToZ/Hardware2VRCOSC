@@ -16,6 +16,7 @@ namespace Hardware2VRCOSC {
         readonly HashSet<ISensor> sensors = new();
         readonly Thread readThread;
         readonly Dictionary<Glob, PatternConfig> patternConfigs = new();
+        readonly Dictionary<ISensor, PatternConfig> mappedConfigs = new();
         UdpClient? udpClient;
         bool isDisposed;
 
@@ -75,6 +76,7 @@ namespace Hardware2VRCOSC {
             computer.NetworkEnabled = config.network;
             UpdateInterval = config.updateInterval;
             patternConfigs.Clear();
+            mappedConfigs.Clear();
             SetPatternConfig(config.patternConfigs);
             if (IP != config.ipAddress || Port != config.port) {
                 Disconnect();
@@ -111,6 +113,7 @@ namespace Hardware2VRCOSC {
             computer?.Close();
             sensors.Clear();
             hardwares.Clear();
+            mappedConfigs.Clear();
         }
 
         void OnHardwareAdded(IHardware hardware) {
@@ -150,30 +153,22 @@ namespace Hardware2VRCOSC {
                 _ => "",
             };
             if (!string.IsNullOrEmpty(unit)) Console.WriteLine($"  Unit: {unit}");
-            foreach (var (glob, pattern) in patternConfigs)
-                if (glob.IsMatch(channel)) {
-                    if (pattern.ignore.GetValueOrDefault(false)) {
-                        Console.WriteLine("  Ignored: This channel will not send any OSC message.");
-                        break;
-                    }
-                    if (pattern.min.HasValue && pattern.max.HasValue) {
-                        Console.WriteLine($"  Range: {pattern.min}{unit} - {pattern.max}{unit} (Will remapped to 0.0 - 1.0)");
-                        break;
-                    }
-                    if (pattern.min.HasValue) {
-                        Console.WriteLine($"  Min Value: {pattern.min}{unit}");
-                        break;
-                    }
-                    if (pattern.max.HasValue) {
-                        Console.WriteLine($"  Max Value: {pattern.max}{unit}");
-                        break;
-                    }
-                }
+            var pattern = GetPattern(sensor);
+            if (pattern.ignore.GetValueOrDefault(false)) {
+                Console.WriteLine("  Ignored: This channel will not send any OSC message.");
+            } else if (pattern.min.HasValue && pattern.max.HasValue) {
+                Console.WriteLine($"  Range: {pattern.min}{unit} - {pattern.max}{unit} (Will remapped to 0.0 - 1.0)");
+            } else if (pattern.min.HasValue) {
+                Console.WriteLine($"  Min Value: {pattern.min}{unit}");
+            } else if (pattern.max.HasValue) {
+                Console.WriteLine($"  Max Value: {pattern.max}{unit}");
+            }
         }
 
         void OnSensorRemoved(ISensor sensor) {
             if (sensors.Remove(sensor))
                 Console.WriteLine($"Sensor unwatched: <{sensor.SensorType}> {sensor.Name}");
+            mappedConfigs.Remove(sensor);
         }
 
         void ReadHardware() {
@@ -184,12 +179,7 @@ namespace Hardware2VRCOSC {
                             hardware.Update();
                         foreach (var sensor in sensors) {
                             var channel = $"{PREFIX}{sensor.Identifier}";
-                            PatternConfig matchedPattern = default;
-                            foreach (var (glob, pattern) in patternConfigs)
-                                if (glob.IsMatch(channel)) {
-                                    matchedPattern = pattern;
-                                    break;
-                                }
+                            var matchedPattern = GetPattern(sensor);
                             if (matchedPattern.ignore.GetValueOrDefault(false)) continue;
                             var sensorValue = sensor.Value;
                             if (sensorValue.HasValue) {
@@ -209,6 +199,20 @@ namespace Hardware2VRCOSC {
                 }
                 Thread.Sleep(UpdateInterval);
             }
+        }
+
+        PatternConfig GetPattern(ISensor sensor) {
+            if (mappedConfigs.TryGetValue(sensor, out var config)) return config;
+            var channel = $"{PREFIX}{sensor.Identifier}";
+            PatternConfig matchedConfig = default;
+            foreach (var (glob, pattern) in patternConfigs)
+                if (glob.IsMatch(channel)) {
+                    if (pattern.ignore.HasValue) matchedConfig.ignore = pattern.ignore;
+                    if (pattern.min.HasValue) matchedConfig.min = pattern.min;
+                    if (pattern.max.HasValue) matchedConfig.max = pattern.max;
+                }
+            mappedConfigs.Add(sensor, matchedConfig);
+            return matchedConfig;
         }
     }
 }
