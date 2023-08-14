@@ -20,6 +20,7 @@ namespace Hardware2VRCOSC {
             Console.WriteLine("Starting hardware info to VRChat OSC reporter");
             try {
                 redirector = new HardwareInfoRedirector(GetConfig());
+                Console.WriteLine("Hint: You can edit config.yml to change the behavior of this program.");
             } catch (Exception ex) {
                 Console.WriteLine(ex);
             }
@@ -38,6 +39,7 @@ namespace Hardware2VRCOSC {
         }
 
         private static void OnConfigChanged(object sender, FileSystemEventArgs e) {
+            Thread.Sleep(100);
             Console.WriteLine("Config changed, reloading...");
             try {
                 if (redirector == null)
@@ -57,7 +59,11 @@ namespace Hardware2VRCOSC {
                 config = Config.defaultConfig;
                 using (var stream = new FileStream(configPath, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (var writer = new StreamWriter(stream, Encoding.UTF8))
-                    new Serializer().Serialize(writer, config);
+                    new SerializerBuilder()
+                    .DisableAliases()
+                    .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+                    .Build()
+                    .Serialize(writer, config);
             } else
                 using (var stream = new FileStream(configPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (var reader = new StreamReader(stream, Encoding.UTF8))

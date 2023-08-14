@@ -5,6 +5,7 @@ using System.Text;
 using System.Net.Sockets;
 using OscCore;
 using OpenHardwareMonitor.Hardware;
+using DotNet.Globbing;
 
 namespace Hardware2VRCOSC {
     internal class HardwareInfoRedirector : IDisposable {
@@ -14,8 +15,8 @@ namespace Hardware2VRCOSC {
         readonly HashSet<IHardware> hardwares = new();
         readonly HashSet<ISensor> sensors = new();
         readonly Thread readThread;
-        readonly StringBuilder sb = new();
         readonly HashSet<SensorType> filteredSensorTypes = new();
+        readonly Dictionary<Glob, PatternConfig> patternConfigs = new();
         UdpClient? udpClient;
         bool isDisposed;
 
@@ -58,6 +59,7 @@ namespace Hardware2VRCOSC {
                 foreach (var sensorType in config.filteredSensorTypes)
                     if (Enum.TryParse(sensorType, out SensorType type))
                         filteredSensorTypes.Add(type);
+            SetPatternConfig(config.patternConfigs);
             computer.HardwareAdded += OnHardwareAdded;
             computer.HardwareRemoved += OnHardwareRemoved;
             computer.Open();
@@ -82,12 +84,22 @@ namespace Hardware2VRCOSC {
                 foreach (var sensorType in config.filteredSensorTypes)
                     if (Enum.TryParse(sensorType, out SensorType type))
                         filteredSensorTypes.Add(type);
+            patternConfigs.Clear();
+            SetPatternConfig(config.patternConfigs);
             if (IP != config.ipAddress || Port != config.port) {
                 Disconnect();
                 IP = config.ipAddress;
                 Port = config.port;
                 if (!string.IsNullOrEmpty(config.ipAddress) && config.port > 0) Connect();
             } 
+        }
+
+        void SetPatternConfig(Dictionary<string, PatternConfig> configs) {
+            if (configs == null) return;
+            foreach (var (pattern, config) in configs) {
+                if (string.IsNullOrEmpty(pattern)) continue;
+                patternConfigs.Add(Glob.Parse(pattern), config);
+            }
         }
 
         public void Connect() {
@@ -131,9 +143,42 @@ namespace Hardware2VRCOSC {
             if (!sensors.Add(sensor)) return;
             Console.WriteLine($"Sensor watched: <{sensor.SensorType}> {sensor.Name}");
             Console.WriteLine("Available OSC channels:");
-            Console.WriteLine($"> {PREFIX}{sensor.Identifier}");
-            Console.WriteLine($"> {PREFIX}{sensor.Identifier}/min");
-            Console.WriteLine($"> {PREFIX}{sensor.Identifier}/max");
+            var channel = $"{PREFIX}{sensor.Identifier}";
+            Console.WriteLine($"> {channel}");
+            string unit = sensor.SensorType switch {
+                SensorType.Voltage => "V",
+                SensorType.Clock => "MHz",
+                SensorType.Temperature => "°C",
+                SensorType.Load or SensorType.Control or SensorType.Level => "%",
+                SensorType.Fan => "RPM",
+                SensorType.Flow => "L/h",
+                SensorType.Power => "W",
+                SensorType.Data => "GB",
+                SensorType.SmallData => "MB",
+                SensorType.Throughput => "MB/s",
+                SensorType.TimeSpan => "s",
+                _ => "",
+            };
+            if (!string.IsNullOrEmpty(unit)) Console.WriteLine($"  Unit: {unit}");
+            foreach (var (glob, pattern) in patternConfigs)
+                if (glob.IsMatch(channel)) {
+                    if (pattern.ignore.GetValueOrDefault(false)) {
+                        Console.WriteLine("  Ignored: This channel will not send any OSC message.");
+                        break;
+                    }
+                    if (pattern.min.HasValue && pattern.max.HasValue) {
+                        Console.WriteLine($"  Range: {pattern.min}{unit} - {pattern.max}{unit} (Will remapped to 0.0 - 1.0)");
+                        break;
+                    }
+                    if (pattern.min.HasValue) {
+                        Console.WriteLine($"  Min Value: {pattern.min}{unit}");
+                        break;
+                    }
+                    if (pattern.max.HasValue) {
+                        Console.WriteLine($"  Max Value: {pattern.max}{unit}");
+                        break;
+                    }
+                }
         }
 
         void OnSensorRemoved(ISensor sensor) {
@@ -152,30 +197,28 @@ namespace Hardware2VRCOSC {
                             var sensorType = sensor.SensorType;
                             if (!filteredSensorTypes.Contains(sensorType)) continue;
                             var channel = $"{PREFIX}{sensor.Identifier}";
-                            if (sensor.Value.HasValue)
-                                udpClient.Send(new OscMessage(channel, ClampLerpValue((float)sensor.Value, sensorType)).ToByteArray());
-                            if (sensor.Min.HasValue)
-                                udpClient.Send(new OscMessage($"{channel}/min", ClampLerpValue((float)sensor.Min, sensorType)).ToByteArray());
-                            if (sensor.Max.HasValue)
-                                udpClient.Send(new OscMessage($"{channel}/max", ClampLerpValue((float)sensor.Max, sensorType)).ToByteArray());
+                            var sensorValue = sensor.Value;
+                            if (sensorValue.HasValue) {
+                                var value = (float)sensorValue.Value;
+                                foreach (var (glob, pattern) in patternConfigs)
+                                    if (glob.IsMatch(channel)) {
+                                        if (pattern.ignore.GetValueOrDefault(false)) continue;
+                                        if (pattern.min.HasValue && value < pattern.min.Value)
+                                            value = pattern.min.Value;
+                                        else if (pattern.max.HasValue && value > pattern.max.Value)
+                                            value = pattern.max.Value;
+                                        else if (pattern.min.HasValue && pattern.max.HasValue)
+                                            value = (value - pattern.min.Value) / (pattern.max.Value - pattern.min.Value);
+                                        break;
+                                    }
+                                udpClient.Send(new OscMessage(channel, value).ToByteArray());
+                            }
                         }
                     }
                 } catch (Exception e) {
                     Console.WriteLine(e);
                 }
                 Thread.Sleep(UpdateInterval);
-            }
-        }
-
-        static float ClampLerpValue(float value, SensorType sensorType) {
-            switch (sensorType) {
-                case SensorType.Load:
-                case SensorType.Control:
-                case SensorType.Level:
-                case SensorType.Temperature:
-                    return value / 100F;
-                default:
-                    return value;
             }
         }
     }

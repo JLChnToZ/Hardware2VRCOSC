@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using OpenHardwareMonitor.Hardware;
 
 namespace Hardware2VRCOSC {
@@ -13,6 +14,7 @@ namespace Hardware2VRCOSC {
         public bool fanController;
         public bool network;
         public string[] filteredSensorTypes;
+        public Dictionary<string, PatternConfig> patternConfigs;
 
         public static readonly Config defaultConfig = new() {
             ipAddress = "127.0.0.1",
@@ -31,6 +33,22 @@ namespace Hardware2VRCOSC {
                 nameof(SensorType.Control),
                 nameof(SensorType.Level),
             },
+            patternConfigs = new() {
+                { "/**/temperature/*", new PatternConfig { min = 30, max = 100 } },
+                { "/**/load/*", new PatternConfig { min = 0, max = 100 } },
+                { "/**/control/*", new PatternConfig { min = 0, max = 100 } },
+                { "/**/level/*", new PatternConfig { min = 0, max = 100 } },
+                { "/**/data/*", new PatternConfig { ignore = true } },
+                { "/**/rawvalue/*", new PatternConfig { ignore = true } },
+                { "/**/clock/*", new PatternConfig { ignore = true } },
+                { "/**/power/*", new PatternConfig { ignore = true } },
+            },
         };
+    }
+
+    public struct PatternConfig {
+        public bool? ignore;
+        public float? min;
+        public float? max;
     }
 }
