@@ -26,20 +26,30 @@ namespace Hardware2VRCOSC {
                 Console.WriteLine("You are running this program as a non-administrator user.");
                 Console.WriteLine("If this program running in non-administrator mode, it may not be able to read some hardware information. (e.g. CPU temperature)");
                 if (!string.IsNullOrEmpty(processPath)) {
-                    Console.Write("Do you want to restart this program as administrator? (Y/N) ");
-                    var key = Console.ReadKey(true);
-                    Console.WriteLine(key.Key);
-                    if (key.Key == ConsoleKey.Y) {
-                        mutex.Close();
-                        Process.Start(new ProcessStartInfo(processPath, Environment.CommandLine) {
-                            UseShellExecute = true,
-                            WorkingDirectory = Environment.CurrentDirectory,
-                            Verb = "runas",
-                        });
-                        return;
+                    while (true) {
+                        Console.Write("Do you want to restart this program as administrator? (Y/N) ");
+                        var key = Console.ReadKey(true);
+                        switch (key.Key) {
+                            case ConsoleKey.Y:
+                                Console.WriteLine('Y');
+                                mutex.Close();
+                                Process.Start(new ProcessStartInfo(processPath, Environment.CommandLine) {
+                                    UseShellExecute = true,
+                                    WorkingDirectory = Environment.CurrentDirectory,
+                                    Verb = "runas",
+                                });
+                                return;
+                            case ConsoleKey.N:
+                                Console.WriteLine('N');
+                                goto ignoreAdmin;
+                            default:
+                                Console.WriteLine();
+                                break;
+                        }
                     }
                 }
             }
+            ignoreAdmin:
             Console.WriteLine("Starting hardware info to VRChat OSC reporter");
             try {
                 redirector = new HardwareInfoRedirector(config);
