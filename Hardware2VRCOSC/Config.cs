@@ -2,6 +2,7 @@ using System.Collections.Generic;
 
 namespace Hardware2VRCOSC {
     struct Config {
+        public bool? skipAdminCheck;
         public string ipAddress;
         public int port;
         public int updateInterval;

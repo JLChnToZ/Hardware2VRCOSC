@@ -138,11 +138,13 @@ namespace Hardware2VRCOSC {
             Console.WriteLine("Available OSC channels:");
             var channel = $"{PREFIX}{sensor.Identifier}";
             Console.WriteLine($"> {channel}");
-            string unit = sensor.SensorType switch {
+            var unit = sensor.SensorType switch {
                 SensorType.Voltage => "V",
                 SensorType.Clock => "MHz",
                 SensorType.Temperature => "°C",
-                SensorType.Load or SensorType.Control or SensorType.Level => "%",
+                SensorType.Load or
+                SensorType.Control or
+                SensorType.Level => "%",
                 SensorType.Fan => "RPM",
                 SensorType.Flow => "L/h",
                 SensorType.Power => "W",

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Security.Principal;
 using System.Text;
 using System.Reflection;
@@ -11,15 +12,37 @@ namespace Hardware2VRCOSC {
         const string CONFIG_FILE_NAME = "config.yml";
         static HardwareInfoRedirector redirector;
 
-        [STAThread]
-        static void Main() {
-            if (!IsAdministrator()) {
+        static void Main() { 
+            var mutex = new Mutex(true, "Hardware2VRCOSC", out var createdNew);
+            if (!createdNew) {
+                Console.WriteLine("Another instance of this program is already running.");
+                return;
+            }
+            var processPath = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(processPath))
+                Environment.CurrentDirectory = Path.GetDirectoryName(processPath);
+            var config = GetConfig();
+            if (!config.skipAdminCheck.GetValueOrDefault() && !IsAdministrator()) {
                 Console.WriteLine("You are running this program as a non-administrator user.");
-                Console.WriteLine("If this program running in non-administrator mode, it may not be able to read some hardware information.");
+                Console.WriteLine("If this program running in non-administrator mode, it may not be able to read some hardware information. (e.g. CPU temperature)");
+                if (!string.IsNullOrEmpty(processPath)) {
+                    Console.Write("Do you want to restart this program as administrator? (Y/N) ");
+                    var key = Console.ReadKey(true);
+                    Console.WriteLine(key.Key);
+                    if (key.Key == ConsoleKey.Y) {
+                        mutex.Close();
+                        Process.Start(new ProcessStartInfo(processPath, Environment.CommandLine) {
+                            UseShellExecute = true,
+                            WorkingDirectory = Environment.CurrentDirectory,
+                            Verb = "runas",
+                        });
+                        return;
+                    }
+                }
             }
             Console.WriteLine("Starting hardware info to VRChat OSC reporter");
             try {
-                redirector = new HardwareInfoRedirector(GetConfig());
+                redirector = new HardwareInfoRedirector(config);
                 Console.WriteLine("Hint: You can edit config.yml to change the behavior of this program.");
             } catch (Exception ex) {
                 Console.WriteLine(ex);
