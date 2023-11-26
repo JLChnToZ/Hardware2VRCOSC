@@ -16,6 +16,7 @@ namespace Hardware2VRCOSC {
         public bool clock;
         public string[] filteredSensorTypes;
         public Dictionary<string, PatternConfig> patternConfigs;
+        public Dictionary<string, string> channelAliases;
 
         public static readonly Config defaultConfig = new() {
             ipAddress = "127.0.0.1",
@@ -46,13 +47,21 @@ namespace Hardware2VRCOSC {
                 { "/**/throughput/*", PatternConfig.Ignored },
 
                 // Date time
-                { "/datetime/month/**", new PatternConfig(0, 12) },
-                { "/datetime/day/**", new PatternConfig(1, 32) },
-                { "/datetime/dayofweek/**", new PatternConfig(0, 6) },
+                { "/datetime/**/utc", PatternConfig.Ignored },
+                { "/datetime/month/**", new PatternConfig(0, 12, ignore: true) },
+                { "/datetime/day/**", new PatternConfig(1, 32, ignore: true) },
+                { "/datetime/dayofweek/**", new PatternConfig(0, 6, ignore: true) },
                 { "/datetime/hour/**", new PatternConfig(0, 24) },
                 { "/datetime/minute/**", new PatternConfig(0, 60) },
                 { "/datetime/second/**", new PatternConfig(0, 60) },
-                { "/datetime/millisecond/**", new PatternConfig(0, 1000) },
+                { "/datetime/millisecond/**", new PatternConfig(0, 1000, ignore: true) },
+            },
+            channelAliases = new() {
+                { "/hardwares/*cpu/0/temperature/0", "/avatar/parameters/cpu_temp" },
+                { "/hardwares/*gpu/0/temperature/0", "/avatar/parameters/gpu_temp" },
+                { "/datetime/hour/local/smooth", "/avatar/parameters/time_hour" },
+                { "/datetime/minute/local/smooth", "/avatar/parameters/time_minute" },
+                { "/datetime/second/local/smooth", "/avatar/parameters/time_second" },
             },
         };
     }
@@ -64,8 +73,8 @@ namespace Hardware2VRCOSC {
         public float? min;
         public float? max;
 
-        public PatternConfig(float? min, float? max, bool? stepped = null) {
-            ignore = (min.HasValue || max.HasValue) ? null : true;
+        public PatternConfig(float? min, float? max, bool? stepped = null, bool? ignore = null) {
+            this.ignore = ignore.HasValue ? ignore : (min.HasValue || max.HasValue) ? null : true;
             this.stepped = stepped;
             this.min = min;
             this.max = max;

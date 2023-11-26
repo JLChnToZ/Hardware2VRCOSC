@@ -18,6 +18,7 @@ namespace Hardware2VRCOSC {
         readonly Dictionary<ISensor, ChannelSender> sensorSenders = new();
         readonly HashSet<ChannelSender> channelSenders = new();
         readonly HashSet<DateTimeSender> dateTimeSenders = new();
+        Dictionary<string, string> channelAliases;
         UdpClient? udpClient;
         bool isDisposed;
         bool clockEnabled;
@@ -105,6 +106,7 @@ namespace Hardware2VRCOSC {
                 NetworkEnabled = config.network,
             };
             SetPatternConfig(config.patternConfigs);
+            channelAliases = config.channelAliases ?? new();
             computer.HardwareAdded += OnHardwareAdded;
             computer.HardwareRemoved += OnHardwareRemoved;
             computer.Open();
@@ -128,6 +130,7 @@ namespace Hardware2VRCOSC {
             patternConfigs.Clear();
             sensorSenders.Clear();
             SetPatternConfig(config.patternConfigs);
+            channelAliases = config.channelAliases ?? new();
             if (IP != config.ipAddress || Port != config.port) {
                 Disconnect();
                 IP = config.ipAddress;
@@ -160,6 +163,7 @@ namespace Hardware2VRCOSC {
                         Console.WriteLine($"Channel max value changed: {sender.channel} {newPattern.max}");
                 }
                 sender.patternConfig = newPattern;
+                CheckChannelAlias(sender);
             }
         }
 
@@ -207,6 +211,7 @@ namespace Hardware2VRCOSC {
             var channel = $"{HARDWARE_PREFIX}{sensor.Identifier}";
             var sender = new SensorSender(channel, sensor);
             if (GetPattern(channel, out var pattern)) sender.patternConfig = pattern;
+            CheckChannelAlias(sender);
             sender.PrintPatternConfig();
             sensorSenders.Add(sensor, sender);
             channelSenders.Add(sender);
@@ -224,13 +229,13 @@ namespace Hardware2VRCOSC {
         void AddDateTimeSender(DateTimeSender sender) {
             if (GetPattern(sender.channel, out var pattern))
                 sender.patternConfig = pattern;
+            CheckChannelAlias(sender);
+            sender.PrintPatternConfig();
             dateTimeSenders.Add(sender);
             channelSenders.Add(sender);
-            sender.PrintPatternConfig();
         }
 
         void ReadHardware() {
-            var oscArgs = new object[1];
             while (!isDisposed) {
                 try {
                     if (udpClient != null) {
@@ -247,6 +252,7 @@ namespace Hardware2VRCOSC {
                 } catch (Exception e) {
                     Console.WriteLine(e);
                 }
+                GC.Collect();
                 Thread.Sleep(UpdateInterval);
             }
         }
@@ -259,6 +265,15 @@ namespace Hardware2VRCOSC {
                 }
             matchedConfig = default;
             return false;
+        }
+
+        void CheckChannelAlias(ChannelSender sender) {
+            foreach (var alias in channelAliases)
+                if (Glob.Parse(alias.Key).IsMatch(sender.channel)) {
+                    if (sender.channelAlias == alias.Value) continue;
+                    sender.channelAlias = alias.Value;
+                    Console.WriteLine($"Channel alias: {sender.channel} -> {sender.channelAlias}");
+                }
         }
     }
 }

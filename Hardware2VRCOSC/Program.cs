@@ -10,6 +10,7 @@ namespace Hardware2VRCOSC {
     internal static class Program {
         const string CONFIG_FILE_NAME = "config.yml";
         static HardwareInfoRedirector? redirector;
+        static FileSystemWatcher? fileWatcher;
 
         static void Main() { 
             var mutex = new Mutex(true, "Hardware2VRCOSC", out var createdNew);
@@ -56,7 +57,7 @@ namespace Hardware2VRCOSC {
             } catch (Exception ex) {
                 Console.WriteLine(ex);
             }
-            var fileWatcher = new FileSystemWatcher(Environment.CurrentDirectory!, CONFIG_FILE_NAME) {
+            fileWatcher = new FileSystemWatcher(Environment.CurrentDirectory!, CONFIG_FILE_NAME) {
                 NotifyFilter = NotifyFilters.Attributes |
                                 NotifyFilters.CreationTime |
                                 NotifyFilters.DirectoryName |

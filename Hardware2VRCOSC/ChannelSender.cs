@@ -14,6 +14,7 @@ namespace Hardware2VRCOSC {
 
         public readonly string channel;
         public PatternConfig patternConfig;
+        public string channelAlias;
 
         public virtual string Unit { get; } = "";
 
@@ -26,12 +27,16 @@ namespace Hardware2VRCOSC {
                 if (patternConfig.ignore.GetValueOrDefault()) return;
                 var value = GetValue();
                 if (patternConfig.stepped.GetValueOrDefault()) value = (float)Math.Round(value);
-                if (patternConfig.min.HasValue && (float)value < patternConfig.min.Value)
-                    value = patternConfig.min.Value;
-                if (patternConfig.max.HasValue && (float)value > patternConfig.max.Value)
-                    value = patternConfig.max.Value;
+                if (patternConfig.min.HasValue && patternConfig.max.HasValue)
+                    value = Math.Clamp((value - patternConfig.min.Value) / (patternConfig.max.Value - patternConfig.min.Value), 0, 1);
+                else {
+                    if (patternConfig.min.HasValue && (float)value < patternConfig.min.Value)
+                        value = patternConfig.min.Value;
+                    if (patternConfig.max.HasValue && (float)value > patternConfig.max.Value)
+                        value = patternConfig.max.Value;
+                }
                 oscArgs[0] = value;
-                new OscMessage(channel, oscArgs).Write(new OscWriter(bufferStream));
+                new OscMessage(string.IsNullOrEmpty(channelAlias) ? channel : channelAlias, oscArgs).Write(new OscWriter(bufferStream));
                 bufferStream.TryGetBuffer(out var buffer);
                 client.Send(buffer.AsSpan());
                 bufferStream.SetLength(0);
@@ -45,6 +50,7 @@ namespace Hardware2VRCOSC {
             Console.WriteLine("Available OSC channels:");
             var unit = Unit;
             Console.WriteLine($"> {channel}");
+            if (!string.IsNullOrEmpty(channelAlias)) Console.WriteLine($"  -> {channelAlias}");
             if (!string.IsNullOrEmpty(unit)) Console.WriteLine($"  Unit: {unit}");
             if (patternConfig.ignore.GetValueOrDefault(false))
                 Console.WriteLine("  Ignored: This channel will not send any OSC message.");
@@ -97,7 +103,7 @@ namespace Hardware2VRCOSC {
         }
 
         protected DateTimeSender(string channel, bool isUTC, bool isStepped = false, long scale = TimeSpan.TicksPerDay) :
-            base($"{channel}/{(isStepped ? "stepped" : "smooth")}/{(isUTC ? "utc" : "local")}") {
+            base($"{channel}/{(isUTC ? "utc" : "local")}/{(isStepped ? "stepped" : "smooth")}") {
             this.isUTC = isUTC;
             this.isStepped = isStepped;
             this.scale = 1F / scale;
