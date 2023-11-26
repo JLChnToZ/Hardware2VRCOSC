@@ -60,6 +60,7 @@ namespace Hardware2VRCOSC {
                 Console.WriteLine($"  Min Value: {patternConfig.min}{unit}");
             else if (patternConfig.max.HasValue)
                 Console.WriteLine($"  Max Value: {patternConfig.max}{unit}");
+            Console.WriteLine();
         }
     }
 

@@ -1,10 +1,18 @@
 using System;
 using System.IO;
-using System.Threading;
-using System.Security.Principal;
 using System.Text;
+using System.Threading;
 using System.Diagnostics;
+using System.Reflection;
+using System.Security.Principal;
 using YamlDotNet.Serialization;
+
+[assembly: AssemblyProduct("Hardware2VRCOSC")]
+[assembly: AssemblyTitle("Hardware2VRCOSC")]
+[assembly: AssemblyDescription("Quick an dirty helper application for sending hardware real-time information (load, temperature, memory usage etc) to VRChat via OSC.")]
+[assembly: AssemblyCompany("Explosive Theorem Lab")]
+[assembly: AssemblyFileVersion("0.0.3.0")]
+[assembly: AssemblyInformationalVersion("0.0.3")]
 
 namespace Hardware2VRCOSC {
     internal static class Program {

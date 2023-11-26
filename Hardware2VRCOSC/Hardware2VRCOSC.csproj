@@ -9,6 +9,7 @@
     <PublishTrimmed>true</PublishTrimmed>
     <StartupObject>Hardware2VRCOSC.Program</StartupObject>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
