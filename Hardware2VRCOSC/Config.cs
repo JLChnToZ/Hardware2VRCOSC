@@ -13,6 +13,7 @@ namespace Hardware2VRCOSC {
         public bool hdd;
         public bool fanController;
         public bool network;
+        public bool clock;
         public string[] filteredSensorTypes;
         public Dictionary<string, PatternConfig> patternConfigs;
 
@@ -27,27 +28,47 @@ namespace Hardware2VRCOSC {
             hdd = false,
             fanController = false,
             network = false,
+            clock = true,
             patternConfigs = new() {
-                { "/**/temperature/*", new PatternConfig { min = 30, max = 100 } },
-                { "/**/load/*", new PatternConfig { min = 0, max = 100 } },
-                { "/**/control/*", new PatternConfig { min = 0, max = 100 } },
-                { "/**/level/*", new PatternConfig { min = 0, max = 100 } },
-                { "/**/data/*", new PatternConfig { ignore = true } },
-                { "/**/smalldata/*", new PatternConfig { ignore = true } },
-                { "/**/rawvalue/*", new PatternConfig { ignore = true } },
-                { "/**/clock/*", new PatternConfig { ignore = true } },
-                { "/**/power/*", new PatternConfig { ignore = true } },
-                { "/**/fan/*", new PatternConfig { ignore = true } },
-                { "/**/flow/*", new PatternConfig { ignore = true } },
-                { "/**/voltage/*", new PatternConfig { ignore = true } },
-                { "/**/throughput/*", new PatternConfig { ignore = true } },
+                // Hardwares
+                { "/**/temperature/*", new PatternConfig (30, 100) },
+                { "/**/load/*", new PatternConfig(0, 100) },
+                { "/**/control/*", new PatternConfig(0, 100) },
+                { "/**/level/*", new PatternConfig(0, 100) },
+                { "/**/data/*", PatternConfig.Ignored },
+                { "/**/smalldata/*", PatternConfig.Ignored },
+                { "/**/rawvalue/*", PatternConfig.Ignored },
+                { "/**/clock/*", PatternConfig.Ignored },
+                { "/**/power/*", PatternConfig.Ignored },
+                { "/**/fan/*", PatternConfig.Ignored },
+                { "/**/flow/*", PatternConfig.Ignored },
+                { "/**/voltage/*", PatternConfig.Ignored },
+                { "/**/throughput/*", PatternConfig.Ignored },
+
+                // Date time
+                { "/datetime/month/**", new PatternConfig(0, 12) },
+                { "/datetime/day/**", new PatternConfig(1, 32) },
+                { "/datetime/dayofweek/**", new PatternConfig(0, 6) },
+                { "/datetime/hour/**", new PatternConfig(0, 24) },
+                { "/datetime/minute/**", new PatternConfig(0, 60) },
+                { "/datetime/second/**", new PatternConfig(0, 60) },
+                { "/datetime/millisecond/**", new PatternConfig(0, 1000) },
             },
         };
     }
 
     public struct PatternConfig {
+        public static readonly PatternConfig Ignored = new(null, null);
         public bool? ignore;
+        public bool? stepped;
         public float? min;
         public float? max;
+
+        public PatternConfig(float? min, float? max, bool? stepped = null) {
+            ignore = (min.HasValue || max.HasValue) ? null : true;
+            this.stepped = stepped;
+            this.min = min;
+            this.max = max;
+        }
     }
 }

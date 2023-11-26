@@ -3,14 +3,13 @@ using System.IO;
 using System.Threading;
 using System.Security.Principal;
 using System.Text;
-using System.Reflection;
 using System.Diagnostics;
 using YamlDotNet.Serialization;
 
 namespace Hardware2VRCOSC {
     internal static class Program {
         const string CONFIG_FILE_NAME = "config.yml";
-        static HardwareInfoRedirector redirector;
+        static HardwareInfoRedirector? redirector;
 
         static void Main() { 
             var mutex = new Mutex(true, "Hardware2VRCOSC", out var createdNew);
@@ -20,7 +19,7 @@ namespace Hardware2VRCOSC {
             }
             var processPath = Environment.ProcessPath;
             if (!string.IsNullOrEmpty(processPath))
-                Environment.CurrentDirectory = Path.GetDirectoryName(processPath);
+                Environment.CurrentDirectory = Path.GetDirectoryName(processPath)!;
             var config = GetConfig();
             if (!config.skipAdminCheck.GetValueOrDefault() && !IsAdministrator()) {
                 Console.WriteLine("You are running this program as a non-administrator user.");
@@ -57,7 +56,7 @@ namespace Hardware2VRCOSC {
             } catch (Exception ex) {
                 Console.WriteLine(ex);
             }
-            var fileWatcher = new FileSystemWatcher(Environment.CurrentDirectory, CONFIG_FILE_NAME) {
+            var fileWatcher = new FileSystemWatcher(Environment.CurrentDirectory!, CONFIG_FILE_NAME) {
                 NotifyFilter = NotifyFilters.Attributes |
                                 NotifyFilters.CreationTime |
                                 NotifyFilters.DirectoryName |
