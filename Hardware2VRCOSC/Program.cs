@@ -5,14 +5,16 @@ using System.Threading;
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Principal;
+using System.Runtime.Versioning;
 using YamlDotNet.Serialization;
 
 [assembly: AssemblyProduct("Hardware2VRCOSC")]
 [assembly: AssemblyTitle("Hardware2VRCOSC")]
 [assembly: AssemblyDescription("Quick an dirty helper application for sending hardware real-time information (load, temperature, memory usage etc) to VRChat via OSC.")]
 [assembly: AssemblyCompany("Explosive Theorem Lab")]
-[assembly: AssemblyFileVersion("0.0.3.0")]
-[assembly: AssemblyInformationalVersion("0.0.3")]
+[assembly: AssemblyFileVersion("0.0.4.0")]
+[assembly: AssemblyInformationalVersion("0.0.4")]
+[assembly: SupportedOSPlatform("windows")]
 
 namespace Hardware2VRCOSC {
     internal static class Program {
@@ -33,11 +35,10 @@ namespace Hardware2VRCOSC {
             if (!config.skipAdminCheck.GetValueOrDefault() && !IsAdministrator()) {
                 Console.WriteLine("You are running this program as a non-administrator user.");
                 Console.WriteLine("If this program running in non-administrator mode, it may not be able to read some hardware information. (e.g. CPU temperature)");
-                if (!string.IsNullOrEmpty(processPath)) {
+                if (!string.IsNullOrEmpty(processPath))
                     while (true) {
                         Console.Write("Do you want to restart this program as administrator? (Y/N) ");
-                        var key = Console.ReadKey(true);
-                        switch (key.Key) {
+                        switch (Console.ReadKey(true).Key) {
                             case ConsoleKey.Y:
                                 Console.WriteLine('Y');
                                 mutex.Close();
@@ -55,7 +56,6 @@ namespace Hardware2VRCOSC {
                                 break;
                         }
                     }
-                }
             }
             ignoreAdmin:
             Console.WriteLine("Starting hardware info to VRChat OSC reporter");
@@ -65,7 +65,7 @@ namespace Hardware2VRCOSC {
             } catch (Exception ex) {
                 Console.WriteLine(ex);
             }
-            fileWatcher = new FileSystemWatcher(Environment.CurrentDirectory!, CONFIG_FILE_NAME) {
+            fileWatcher = new FileSystemWatcher(Environment.CurrentDirectory, CONFIG_FILE_NAME) {
                 NotifyFilter = NotifyFilters.Attributes |
                                 NotifyFilters.CreationTime |
                                 NotifyFilters.DirectoryName |
@@ -98,17 +98,18 @@ namespace Hardware2VRCOSC {
             if (!File.Exists(configPath)) {
                 Console.WriteLine("Config not found, creating one...");
                 config = Config.defaultConfig;
-                using (var stream = new FileStream(configPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                using (var writer = new StreamWriter(stream, Encoding.UTF8))
-                    new SerializerBuilder()
+                using var stream = new FileStream(configPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                using var writer = new StreamWriter(stream, Encoding.UTF8);
+                new SerializerBuilder()
                     .DisableAliases()
                     .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
                     .Build()
                     .Serialize(writer, config);
-            } else
-                using (var stream = new FileStream(configPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (var reader = new StreamReader(stream, Encoding.UTF8))
-                    config = new Deserializer().Deserialize<Config>(reader);
+            } else {
+                using var stream = new FileStream(configPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                config = new Deserializer().Deserialize<Config>(reader);
+            }
             return config;
         }
 

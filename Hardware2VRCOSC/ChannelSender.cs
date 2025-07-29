@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Net.Sockets;
+using MathUtilities;
 using OpenHardwareMonitor.Hardware;
 using OscCore;
 using OscCore.LowLevel;
@@ -14,7 +15,7 @@ namespace Hardware2VRCOSC {
 
         public readonly string channel;
         public PatternConfig patternConfig;
-        public string channelAlias;
+        public string? channelAlias;
 
         public virtual string Unit { get; } = "";
 
@@ -155,14 +156,30 @@ namespace Hardware2VRCOSC {
     public class SecondSender : TimeOfDaySender {
         public SecondSender(string channelPrefix, bool isUTC, bool stepped) :
             base(channelPrefix, "second", TimeSpan.TicksPerSecond, isUTC, stepped) { }
-        
+
         protected override float GetValue() => base.GetValue() % 60;
     }
 
     public class MillisecondSender : TimeOfDaySender {
         public MillisecondSender(string channelPrefix, bool isUTC, bool stepped) :
             base(channelPrefix, "millisecond", TimeSpan.TicksPerMillisecond, isUTC, stepped) { }
-        
+
         protected override float GetValue() => base.GetValue() % 1000;
+    }
+
+    public class ExpressionSender : ChannelSender {
+        readonly MathEvalulator mathEvalulator;
+        readonly AbstractMathEvalulator<double>.Token[]? tokens;
+
+        public ExpressionSender(string channel, MathEvalulator mathEvalulator) : base(channel) {
+            this.mathEvalulator = mathEvalulator;
+            tokens = mathEvalulator.Tokens;
+        }
+
+        protected override float GetValue() {
+            if (tokens == null || tokens.Length <= 0) return float.NaN;
+            mathEvalulator.Tokens = tokens;
+            return (float)mathEvalulator.Evaluate();
+        }
     }
 }

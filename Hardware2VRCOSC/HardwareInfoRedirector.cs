@@ -4,15 +4,18 @@ using System.Threading;
 using System.Net.Sockets;
 using OpenHardwareMonitor.Hardware;
 using DotNet.Globbing;
+using MathUtilities;
 
 namespace Hardware2VRCOSC {
     internal class HardwareInfoRedirector : IDisposable {
         const string HARDWARE_PREFIX = "/hardwares";
         const string TIME_PREFIX = "/datetime";
+        readonly MathEvalulator mathEvalulator = new();
         readonly HashSet<HardwareType> watchingHardwares = new();
         readonly Computer computer;
         readonly HashSet<IHardware> hardwares = new();
         readonly HashSet<ISensor> sensors = new();
+        readonly Dictionary<string, ISensor> sensorLookup = new(StringComparer.OrdinalIgnoreCase);
         readonly Thread readThread;
         readonly Dictionary<Glob, PatternConfig> patternConfigs = new();
         readonly Dictionary<ISensor, ChannelSender> sensorSenders = new();
@@ -106,6 +109,7 @@ namespace Hardware2VRCOSC {
                 NetworkEnabled = config.network,
             };
             SetPatternConfig(config.patternConfigs);
+            SetExpressions(config.expressions);
             channelAliases = config.channelAliases ?? new();
             computer.HardwareAdded += OnHardwareAdded;
             computer.HardwareRemoved += OnHardwareRemoved;
@@ -115,6 +119,7 @@ namespace Hardware2VRCOSC {
             readThread.Start();
             if (!string.IsNullOrEmpty(config.ipAddress) && config.port > 0) Connect();
             ClockEnabled = config.clock;
+            mathEvalulator.GetVariableFunc = GetVariable;
         }
 
         public void UpdateConfig(Config config) {
@@ -130,6 +135,7 @@ namespace Hardware2VRCOSC {
             patternConfigs.Clear();
             sensorSenders.Clear();
             SetPatternConfig(config.patternConfigs);
+            SetExpressions(config.expressions);
             channelAliases = config.channelAliases ?? new();
             if (IP != config.ipAddress || Port != config.port) {
                 Disconnect();
@@ -164,6 +170,22 @@ namespace Hardware2VRCOSC {
                 }
                 sender.patternConfig = newPattern;
                 CheckChannelAlias(sender);
+            }
+        }
+
+        void SetExpressions(Dictionary<string, string> srcExpression) {
+            if (srcExpression == null) return;
+            channelSenders.RemoveWhere(sender => sender is ExpressionSender);
+            foreach (var kv in srcExpression) {
+                var channel = kv.Key;
+                var expression = kv.Value;
+                if (string.IsNullOrWhiteSpace(expression)) continue;
+                try {
+                    mathEvalulator.Parse(expression);
+                    channelSenders.Add(new ExpressionSender(channel, mathEvalulator));
+                } catch (Exception e) {
+                    Console.WriteLine($"Error parsing expression for channel {channel}: {e.Message}");
+                }
             }
         }
 
@@ -215,6 +237,7 @@ namespace Hardware2VRCOSC {
             sender.PrintPatternConfig();
             sensorSenders.Add(sensor, sender);
             channelSenders.Add(sender);
+            sensorLookup[string.Join(".", channel.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))] = sensor;
         }
 
         void OnSensorRemoved(ISensor sensor) {
@@ -234,6 +257,11 @@ namespace Hardware2VRCOSC {
             dateTimeSenders.Add(sender);
             channelSenders.Add(sender);
         }
+
+        double GetVariable(string identifier) =>
+            sensorLookup.TryGetValue(identifier, out var sensor) ?
+            sensor.Value.GetValueOrDefault(double.NaN) :
+            double.NaN;
 
         void ReadHardware() {
             while (!isDisposed) {

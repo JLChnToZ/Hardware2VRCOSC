@@ -17,6 +17,7 @@ namespace Hardware2VRCOSC {
         public string[] filteredSensorTypes;
         public Dictionary<string, PatternConfig> patternConfigs;
         public Dictionary<string, string> channelAliases;
+        public Dictionary<string, string> expressions;
 
         public static readonly Config defaultConfig = new() {
             ipAddress = "127.0.0.1",
@@ -63,6 +64,7 @@ namespace Hardware2VRCOSC {
                 { "/datetime/minute/local/smooth", "/avatar/parameters/time_minute" },
                 { "/datetime/second/local/smooth", "/avatar/parameters/time_second" },
             },
+            expressions = new(),
         };
     }
 

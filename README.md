@@ -28,6 +28,13 @@ Here are the available options in the config file:
     - `max`: The maximum readings to be sent, if `min` and `max` both are set, it will remaps the value to `0`-`1` (this is intentional for VRChat syncing parameters)
     - `stepped`: It will rounds the value to nearest integer before remaps it if this is `true`.
 - `channelAliases`: Alternatively you can set an alias for specific channel output path, it also matches using glob (*).
+- `expressions`: You can mix and match all hardware channels with math expressions like this (replaces `/` to `.`, glob is not supported):
+  ```yaml
+    /avatar/parameters/something_fancy: '(hardwares.intelcpu.0.load.1 + hardwares.intelcpu.0.load.2) / 2'
+  ```
+  Above will send cpu #1 and #2 average load to `something_fancy` avatar parameter.  
+  It also supports following math functions:  
+    `abs`, `sqrt`, `cbrt`, `pow`, `lerp`, `remap`, `saturate`, `sign`, `round`, `floor`, `ceil`, `trunc`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `log`, `exp`, `log10`, `log2`, `random`, `isnan`, `switch`
 
 If you see channel default prefixes with `/hardwares/`, it will be a hardware realtime info; if it is prefixes with `/datetime/`, it is just datetime info provided by system clock.
 
