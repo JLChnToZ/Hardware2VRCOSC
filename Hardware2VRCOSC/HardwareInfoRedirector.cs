@@ -95,6 +95,14 @@ namespace Hardware2VRCOSC {
             }
         }
 
+        static string ChannelToLookupVariable(string channel) {
+            if (string.IsNullOrWhiteSpace(channel)) return string.Empty;
+            channel = channel.Replace('-', '_');
+            var channelSplit = channel.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (channelSplit.Length == 0) return string.Empty;
+            return string.Join(".", channelSplit);
+        }
+
         public HardwareInfoRedirector() : this(Config.defaultConfig) {}
 
         public HardwareInfoRedirector(Config config) {
@@ -238,12 +246,14 @@ namespace Hardware2VRCOSC {
             Console.WriteLine($"Sensor watched: <{sensor.SensorType}> {sensor.Name}");
             var channel = $"{HARDWARE_PREFIX}{sensor.Identifier}";
             var sender = new SensorSender(channel, sensor);
+            var identifier = ChannelToLookupVariable(channel);
+            Console.WriteLine($"Identifier: {identifier}");
             if (GetPattern(channel, out var pattern)) sender.patternConfig = pattern;
             CheckChannelAlias(sender);
             sender.PrintPatternConfig();
             sensorSenders.Add(sensor, sender);
             channelSenders.Add(sender);
-            sensorLookup[string.Join(".", channel.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))] = sensor;
+            sensorLookup[identifier] = sensor;
         }
 
         void OnSensorRemoved(ISensor sensor) {
@@ -253,7 +263,7 @@ namespace Hardware2VRCOSC {
                 sensorSenders.Remove(sensor);
                 channelSenders.Remove(sender);
             }
-            var identifier = string.Join(".", $"{HARDWARE_PREFIX}{sensor.Identifier}".Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            var identifier = ChannelToLookupVariable($"{HARDWARE_PREFIX}{sensor.Identifier}");
             if (sensorLookup.TryGetValue(identifier, out var existingSensor) && existingSensor == sensor)
                 sensorLookup.Remove(identifier);
         }
