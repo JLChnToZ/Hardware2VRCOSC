@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Net.Sockets;
-using OpenHardwareMonitor.Hardware;
+using LibreHardwareMonitor.Hardware;
 using DotNet.Globbing;
 using MathUtilities;
 
@@ -32,19 +32,21 @@ namespace Hardware2VRCOSC {
 
         public int Port { get; set; }
 
-        public bool RAMEnabled { get => computer.RAMEnabled; set => computer.RAMEnabled = value; }
+        public bool RAMEnabled { get => computer.IsMemoryEnabled; set => computer.IsMemoryEnabled = value; }
 
-        public bool MainboardEnabled { get => computer.MainboardEnabled; set => computer.MainboardEnabled = value; }
+        public bool MainboardEnabled { get => computer.IsMotherboardEnabled; set => computer.IsMotherboardEnabled = value; }
 
-        public bool CPUEnabled { get => computer.CPUEnabled; set => computer.CPUEnabled = value; }
+        public bool CPUEnabled { get => computer.IsCpuEnabled; set => computer.IsCpuEnabled = value; }
 
-        public bool GPUEnabled { get => computer.GPUEnabled; set => computer.GPUEnabled = value; }
+        public bool GPUEnabled { get => computer.IsGpuEnabled; set => computer.IsGpuEnabled = value; }
 
-        public bool HDDEnabled { get => computer.HDDEnabled; set => computer.HDDEnabled = value; }
+        public bool HDDEnabled { get => computer.IsStorageEnabled; set => computer.IsStorageEnabled = value; }
 
-        public bool FanControllerEnabled { get => computer.FanControllerEnabled; set => computer.FanControllerEnabled = value; }
+        public bool PSUEnabled { get => computer.IsPsuEnabled; set => computer.IsPsuEnabled = value; }
 
-        public bool NetworkEnabled { get => computer.NetworkEnabled; set => computer.NetworkEnabled = value; }
+        public bool FanControllerEnabled { get => computer.IsControllerEnabled; set => computer.IsControllerEnabled = value; }
+
+        public bool NetworkEnabled { get => computer.IsNetworkEnabled; set => computer.IsNetworkEnabled = value; }
 
         public bool ClockEnabled {
             get => clockEnabled;
@@ -100,13 +102,15 @@ namespace Hardware2VRCOSC {
             IP = config.ipAddress;
             Port = config.port;
             computer = new Computer {
-                RAMEnabled = config.ram,
-                MainboardEnabled = config.mainboard,
-                CPUEnabled = config.cpu,
-                GPUEnabled = config.gpu,
-                HDDEnabled = config.hdd,
-                FanControllerEnabled = config.fanController,
-                NetworkEnabled = config.network,
+                IsMemoryEnabled = config.ram,
+                IsMotherboardEnabled = config.mainboard,
+                IsCpuEnabled = config.cpu,
+                IsGpuEnabled = config.gpu,
+                IsStorageEnabled = config.hdd,
+                IsControllerEnabled = config.fanController,
+                IsNetworkEnabled = config.network,
+                IsPsuEnabled = config.psu,
+                IsRing0Enabled = OperatingSystem.IsWindows() && Utils.IsAdministrator(),
             };
             SetPatternConfig(config.patternConfigs);
             SetExpressions(config.expressions);
@@ -114,23 +118,25 @@ namespace Hardware2VRCOSC {
             computer.HardwareAdded += OnHardwareAdded;
             computer.HardwareRemoved += OnHardwareRemoved;
             computer.Open();
-            foreach (var hardaware in computer.Hardware) OnHardwareAdded(hardaware);
+            foreach (var hardware in computer.Hardware) OnHardwareAdded(hardware);
             readThread = new Thread(ReadHardware);
             readThread.Start();
             if (!string.IsNullOrEmpty(config.ipAddress) && config.port > 0) Connect();
             ClockEnabled = config.clock;
+            mathEvalulator.RegisterDefaultFunctions();
             mathEvalulator.GetVariableFunc = GetVariable;
         }
 
         public void UpdateConfig(Config config) {
             if (isDisposed) throw new ObjectDisposedException(nameof(HardwareInfoRedirector));
-            computer.RAMEnabled = config.ram;
-            computer.MainboardEnabled = config.mainboard;
-            computer.CPUEnabled = config.cpu;
-            computer.GPUEnabled = config.gpu;
-            computer.HDDEnabled = config.hdd;
-            computer.FanControllerEnabled = config.fanController;
-            computer.NetworkEnabled = config.network;
+            computer.IsMemoryEnabled = config.ram;
+            computer.IsMotherboardEnabled = config.mainboard;
+            computer.IsCpuEnabled = config.cpu;
+            computer.IsGpuEnabled = config.gpu;
+            computer.IsStorageEnabled = config.hdd;
+            computer.IsControllerEnabled = config.fanController;
+            computer.IsNetworkEnabled = config.network;
+            computer.IsPsuEnabled = config.psu;
             UpdateInterval = config.updateInterval;
             patternConfigs.Clear();
             sensorSenders.Clear();
@@ -247,6 +253,9 @@ namespace Hardware2VRCOSC {
                 sensorSenders.Remove(sensor);
                 channelSenders.Remove(sender);
             }
+            var identifier = string.Join(".", $"{HARDWARE_PREFIX}{sensor.Identifier}".Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            if (sensorLookup.TryGetValue(identifier, out var existingSensor) && existingSensor == sensor)
+                sensorLookup.Remove(identifier);
         }
 
         void AddDateTimeSender(DateTimeSender sender) {
@@ -258,10 +267,25 @@ namespace Hardware2VRCOSC {
             channelSenders.Add(sender);
         }
 
-        double GetVariable(string identifier) =>
-            sensorLookup.TryGetValue(identifier, out var sensor) ?
-            sensor.Value.GetValueOrDefault(double.NaN) :
-            double.NaN;
+        double GetVariable(string identifier) {
+            if (sensorLookup.TryGetValue(identifier, out var sensor))
+                return sensor.Value.GetValueOrDefault(float.NaN);
+            return identifier.ToUpper() switch {
+                "LOCALTIME.YEAR" => DateTime.Now.Year,
+                "LOCALTIME.MONTH" => DateTime.Now.Month,
+                "LOCALTIME.DAY" => DateTime.Now.Day,
+                "LOCALTIME.DAYOFWEEK" => (int)DateTime.Now.DayOfWeek,
+                "LOCALTIME.TIMEOFDAY" => DateTime.Now.TimeOfDay.TotalDays,
+                "LOCALTIME.TIMESTAMP" => DateTimeOffset.Now.ToUnixTimeMilliseconds() * 0.001,
+                "UTCTIME.YEAR" => DateTime.UtcNow.Year,
+                "UTCTIME.MONTH" => DateTime.UtcNow.Month,
+                "UTCTIME.DAY" => DateTime.UtcNow.Day,
+                "UTCTIME.DAYOFWEEK" => (int)DateTime.UtcNow.DayOfWeek,
+                "UTCTIME.TIMEOFDAY" => DateTime.UtcNow.TimeOfDay.TotalDays,
+                "UTCTIME.TIMESTAMP" => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 0.001,
+                _ => double.NaN,
+            };
+        }
 
         void ReadHardware() {
             while (!isDisposed) {

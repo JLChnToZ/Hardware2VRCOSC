@@ -4,7 +4,6 @@ using System.Text;
 using System.Threading;
 using System.Diagnostics;
 using System.Reflection;
-using System.Security.Principal;
 using System.Runtime.Versioning;
 using YamlDotNet.Serialization;
 
@@ -14,7 +13,6 @@ using YamlDotNet.Serialization;
 [assembly: AssemblyCompany("Explosive Theorem Lab")]
 [assembly: AssemblyFileVersion("0.0.4.0")]
 [assembly: AssemblyInformationalVersion("0.0.4")]
-[assembly: SupportedOSPlatform("windows")]
 
 namespace Hardware2VRCOSC {
     internal static class Program {
@@ -32,7 +30,7 @@ namespace Hardware2VRCOSC {
             if (!string.IsNullOrEmpty(processPath))
                 Environment.CurrentDirectory = Path.GetDirectoryName(processPath)!;
             var config = GetConfig();
-            if (!config.skipAdminCheck.GetValueOrDefault() && !IsAdministrator()) {
+            if (OperatingSystem.IsWindows() && !config.skipAdminCheck.GetValueOrDefault() && !Utils.IsAdministrator()) {
                 Console.WriteLine("You are running this program as a non-administrator user.");
                 Console.WriteLine("If this program running in non-administrator mode, it may not be able to read some hardware information. (e.g. CPU temperature)");
                 if (!string.IsNullOrEmpty(processPath))
@@ -112,7 +110,5 @@ namespace Hardware2VRCOSC {
             }
             return config;
         }
-
-        static bool IsAdministrator() => new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
     }
 }

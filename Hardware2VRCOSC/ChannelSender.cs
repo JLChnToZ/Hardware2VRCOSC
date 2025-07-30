@@ -1,9 +1,8 @@
-
 using System;
 using System.IO;
 using System.Net.Sockets;
 using MathUtilities;
-using OpenHardwareMonitor.Hardware;
+using LibreHardwareMonitor.Hardware;
 using OscCore;
 using OscCore.LowLevel;
 

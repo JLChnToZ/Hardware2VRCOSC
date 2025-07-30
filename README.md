@@ -1,6 +1,6 @@
 # Hardware to VRChat OSC Reporter
 
-This is a simple tool that could constantly sends hardware status of your computer rig to VRChat via OSC channels, so that you can synchronize these status to your own avatars. It is powered by [Open Hardware Monitor](https://openhardwaremonitor.org/). It supports every hardware what Open Hardware Monitor supports, including loads, temperatures of CPU, GPU, RAM, fan, water cooling, etc. Additionally, it can be also configurated to send datetime information, useful for gadget like watches.
+This is a simple tool that could constantly sends hardware status of your computer rig to VRChat via OSC channels, so that you can synchronize these status to your own avatars. It is powered by [Libre Hardware Monitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (A fork of Open Hardware Monitor). It supports every hardware what Libre Hardware Monitor supports, including loads, temperatures of CPU, GPU, RAM, fan, water cooling, etc. Additionally, it can be also configurated to send datetime information, useful for gadget like watches.
 
 To use it, just double-click the exe-file, and it will appears as a console window. You can then copy the listed OSC channel path of your desired hardware information to the input section of parameters in the [config json file of your avatar](https://docs.vrchat.com/docs/osc-avatar-parameters) (assume you have already prepare float parameters for receiving such data in your avatar), and you are ready to use. Alternatively, instead of modifying the JSON file, you can set an alias to the channel path, for example, you want your GPU temperature redirects to `gpu_temp` parameter of your avatar, you can add an entry to `channelAliases` section in the `config.yml` like this:
 
@@ -22,6 +22,7 @@ Here are the available options in the config file:
 - `hdd`: Should harddrives be monitored (`true`/`false`)
 - `fanController`: Should fan controllers be monitored (`true`/`false`)
 - `network`: Should network card be monitored (`true`/`false`)
+- `psu`: Should power supply unit be monitored (`true`/`false`)
 - `patternConfigs`: You can adjusts the configuration by sent channel paths, it matches using glob (*).
     - `ignored`: The channel will not be sent if this is `true`
     - `min`: The minimum readings to be sent
@@ -33,8 +34,51 @@ Here are the available options in the config file:
     /avatar/parameters/something_fancy: '(hardwares.intelcpu.0.load.1 + hardwares.intelcpu.0.load.2) / 2'
   ```
   Above will send cpu #1 and #2 average load to `something_fancy` avatar parameter.  
-  It also supports following math functions:  
-    `abs`, `sqrt`, `cbrt`, `pow`, `lerp`, `remap`, `saturate`, `sign`, `round`, `floor`, `ceil`, `trunc`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `log`, `exp`, `log10`, `log2`, `random`, `isnan`, `switch`
+  It also supports following math functions (case insensitive):  
+    - `abs`
+    - `sqrt`
+    - `cbrt`
+    - `pow`
+    - `lerp`
+    - `remap`
+    - `saturate`
+    - `sign`
+    - `round`
+    - `floor`
+    - `ceil`
+    - `trunc`
+    - `sin`
+    - `cos`
+    - `tan`
+    - `asin`
+    - `acos`
+    - `atan`
+    - `sinh`
+    - `cosh`
+    - `tanh`
+    - `asinh`
+    - `acosh`
+    - `atanh`
+    - `log`
+    - `exp`
+    - `log10`
+    - `log2`
+    - `random`
+    - `isnan`
+    - `switch`
+  And these variables (case insensitive):
+    - `LocalTime.Year`
+    - `LocalTime.Month`
+    - `LocalTime.Day`
+    - `LocalTime.DayOfWeek`
+    - `LocalTime.TimeOfDay`
+    - `LocalTime.Timestamp`
+    - `UtcTime.Year`
+    - `UtcTime.Month`
+    - `UtcTime.Day`
+    - `UtcTime.DayOfWeek`
+    - `UtcTime.TimeOfDay`
+    - `UtcTime.Timestamp`
 
 If you see channel default prefixes with `/hardwares/`, it will be a hardware realtime info; if it is prefixes with `/datetime/`, it is just datetime info provided by system clock.
 

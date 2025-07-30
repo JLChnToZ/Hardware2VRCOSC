@@ -13,6 +13,7 @@ namespace Hardware2VRCOSC {
         public bool hdd;
         public bool fanController;
         public bool network;
+        public bool psu;
         public bool clock;
         public string[] filteredSensorTypes;
         public Dictionary<string, PatternConfig> patternConfigs;
@@ -31,6 +32,7 @@ namespace Hardware2VRCOSC {
             fanController = false,
             network = false,
             clock = true,
+            psu = false,
             patternConfigs = new() {
                 // Hardwares
                 { "/**/temperature/*", new PatternConfig (30, 100) },
