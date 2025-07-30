@@ -2,7 +2,6 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 
 namespace MathUtilities {
     public abstract partial class AbstractMathEvalulator<TNumber> where TNumber : unmanaged, IComparable<TNumber> {
@@ -246,9 +245,11 @@ namespace MathUtilities {
                                 result.Add(top);
                                 ops.PopAndDiscard();
                             }
-                            if (ops.Count == 0)
-                                throw new Exception("Mismatched parenthesis");
-                            if (token.type != TokenType.Comma) ops.PopAndDiscard();
+                            if (token.type != TokenType.Comma) {
+                                if (ops.Count == 0)
+                                    throw new Exception("Mismatched parenthesis");
+                                ops.PopAndDiscard();
+                            }
                             break;
                         case TokenType.Else:
                             PushPreviousIdentifier(ref lastToken, false);
@@ -267,10 +268,9 @@ namespace MathUtilities {
                                 while (ops.Count > 0) {
                                     var top = ops.PeekLast();
                                     if (precedences[(int)top.type] > precedences[(int)token.type] ||
-                                        (precedences[(int)top.type] == precedences[(int)token.type] &&
-                                        !rtlOperators[(int)top.type])) break;
+                                        top.type == TokenType.LeftParenthesis) break;
                                     result.Add(top);
-                                    ops.Pop();
+                                    ops.PopAndDiscard();
                                 }
                             ops.Add(token);
                             break;
@@ -287,11 +287,13 @@ namespace MathUtilities {
                             break;
                     }
                 }
-                this.tokens = new Token[result.Count];
-                result.CopyTo(this.tokens, 0);
+                this.tokens = result.Pop(result.Count).ToArray();
             } finally {
                 ops.Clear();
                 result.Clear();
+                valueStack.Clear();
+                conditionStack.Clear();
+                argumentStack.Clear();
             }
         }
 

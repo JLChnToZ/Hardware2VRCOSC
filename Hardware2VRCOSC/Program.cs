@@ -4,7 +4,6 @@ using System.Text;
 using System.Threading;
 using System.Diagnostics;
 using System.Reflection;
-using System.Runtime.Versioning;
 using YamlDotNet.Serialization;
 
 [assembly: AssemblyProduct("Hardware2VRCOSC")]
