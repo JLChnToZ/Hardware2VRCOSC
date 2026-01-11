@@ -52,9 +52,9 @@ namespace MathUtilities {
 
         protected abstract bool IsTruely(TNumber value);
 
-        public TNumber Evaluate() {
+        public TNumber Evaluate(Token[] tokens) {
             try {
-                foreach (var token in tokens!)
+                foreach (var token in tokens)
                     switch (token.type) {
                         case TokenType.LeftParenthesis:
                             argumentStack.Add(valueStack.Count);
@@ -199,68 +199,67 @@ namespace MathUtilities {
         #region Operators
         [Processor("min")]
         protected TNumber Min(Span<TNumber> args) {
-            if (comparer == null) comparer = Comparer<TNumber>.Default;
-            if (args.Length == 0) return Error;
-            var min = args[0];
-            for (int i = 1; i < args.Length; i++)
-                if (comparer.Compare(args[i], min) < 0)
-                    min = args[i];
-            return min;
+            comparer ??= Comparer<TNumber>.Default;
+            try {
+                return comparer.Min(args);
+            } catch {
+                return Error;
+            }
         }
 
         [Processor("max")]
         protected TNumber Max(Span<TNumber> args) {
-            if (comparer == null) comparer = Comparer<TNumber>.Default;
-            if (args.Length == 0) return Error;
-            var max = args[0];
-            for (int i = 1; i < args.Length; i++)
-                if (comparer.Compare(args[i], max) > 0)
-                    max = args[i];
-            return max;
+            comparer ??= Comparer<TNumber>.Default;
+            try {
+                return comparer.Max(args);
+            } catch {
+                return Error;
+            }
         }
 
         [Processor("clamp")]
         protected TNumber Clamp(Span<TNumber> args) {
-            if (comparer == null) comparer = Comparer<TNumber>.Default;
-            if (args.Length < 3) return Error;
-            return comparer.Compare(args[2], args[0]) < 0 ? args[0] :
-                comparer.Compare(args[2], args[1]) > 0 ? args[1] :
-                args[2];
+            comparer ??= Comparer<TNumber>.Default;
+            try {
+                return comparer.Median(args);
+            } catch {
+                return Error;
+            }
         }
 
         [Processor(TokenType.Equals)]
         protected virtual TNumber Equals(TNumber first, TNumber second) {
-            if (comparer == null) comparer = Comparer<TNumber>.Default;
+            comparer ??= Comparer<TNumber>.Default;
             return comparer.Compare(first, second) == 0 ? Truely : Falsy;
         }
 
         [Processor(TokenType.NotEquals)]
         protected virtual TNumber NotEquals(TNumber first, TNumber second) {
-            if (comparer == null) comparer = Comparer<TNumber>.Default;
+            comparer ??= Comparer<TNumber>.Default;
             return comparer.Compare(first, second) != 0 ? Truely : Falsy;
         }
 
         [Processor(TokenType.GreaterThan)]
         protected virtual TNumber GreaterThan(TNumber first, TNumber second) {
-            if (comparer == null) comparer = Comparer<TNumber>.Default;
+            comparer ??= Comparer<TNumber>.Default;
             return comparer.Compare(first, second) > 0 ? Truely : Falsy;
         }
 
         [Processor(TokenType.GreaterThanOrEquals)]
         protected virtual TNumber GreaterThanOrEquals(TNumber first, TNumber second) {
-            if (comparer == null) comparer = Comparer<TNumber>.Default;
+            comparer ??= Comparer<TNumber>.Default;
             return comparer.Compare(first, second) >= 0 ? Truely : Falsy;
         }
 
         [Processor(TokenType.LessThan)]
         protected virtual TNumber LessThan(TNumber first, TNumber second) {
-            if (comparer == null) comparer = Comparer<TNumber>.Default;
+            comparer ??= Comparer<TNumber>.Default;
             return comparer.Compare(first, second) < 0 ? Truely : Falsy;
         }
 
         [Processor(TokenType.LessThanOrEquals)]
         protected virtual TNumber LessThanOrEquals(TNumber first, TNumber second) {
-            if (comparer == null) comparer = Comparer<TNumber>.Default;
+            comparer ??= Comparer<TNumber>.Default;
             return comparer.Compare(first, second) <= 0 ? Truely : Falsy;
         }
 

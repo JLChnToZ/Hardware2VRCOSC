@@ -181,7 +181,7 @@ namespace MathUtilities {
         }
 
         [SuppressMessage("Style", "IDE0051:Remove unused private members", Justification = "Used by reflection")]
-        [Processor("isnan")] static double IsNaN(Span<double> args) => double.IsNaN(args[0]) ? 1F : 0F;
+        [Processor("isnan")] static double IsNaN(Span<double> args) => double.IsNaN(args[0]) ? 1 : 0;
 
         [SuppressMessage("Style", "IDE0051:Remove unused private members", Justification = "Used by reflection")]
         [Processor("switch")]

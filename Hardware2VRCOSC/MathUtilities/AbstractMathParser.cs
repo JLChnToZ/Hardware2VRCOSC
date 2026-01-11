@@ -36,32 +36,19 @@ namespace MathUtilities {
             }
         );
         static readonly byte[] precedences;
-        static readonly bool[] rtlOperators;
         StringBuilder? sb;
         LightWeightDeque<Token> ops;
         LightWeightDeque<Token> result;
-        Token[]? tokens;
-
-        public Token[]? Tokens {
-            get => tokens;
-            set => tokens = value ?? Array.Empty<Token>();
-        }
 
         static AbstractMathEvalulator() {
             precedences = new byte[256];
-            rtlOperators = new bool[256];
             precedences[(int)TokenType.LeftParenthesis] = 0;
             precedences[(int)TokenType.RightParenthesis] = 0;
-            rtlOperators[(int)TokenType.External] = true;
-            precedences[(int)TokenType.External] = 1;
-            rtlOperators[(int)TokenType.UnaryPlus] = true;
-            precedences[(int)TokenType.UnaryPlus] = 1;
-            rtlOperators[(int)TokenType.UnaryMinus] = true;
-            precedences[(int)TokenType.UnaryMinus] = 1;
-            rtlOperators[(int)TokenType.LogicalNot] = true;
-            precedences[(int)TokenType.LogicalNot] = 1;
-            rtlOperators[(int)TokenType.BitwiseNot] = true;
-            precedences[(int)TokenType.BitwiseNot] = 1;
+            precedences[(int)TokenType.External] = 0x80 | 1;
+            precedences[(int)TokenType.UnaryPlus] = 0x80 | 1;
+            precedences[(int)TokenType.UnaryMinus] = 0x80 | 1;
+            precedences[(int)TokenType.LogicalNot] = 0x80 | 1;
+            precedences[(int)TokenType.BitwiseNot] = 0x80 | 1;
             precedences[(int)TokenType.Multiply] = 2;
             precedences[(int)TokenType.Divide] = 2;
             precedences[(int)TokenType.Modulo] = 2;
@@ -85,7 +72,7 @@ namespace MathUtilities {
             precedences[(int)TokenType.Comma] = 15;
         }
 
-        public void Parse(string expression) => ShuntingYard(Tokenize(expression));
+        public Token[] Parse(string expression) => ShuntingYard(Tokenize(expression));
 
         IEnumerable<Token> Tokenize(IEnumerable<char> expression) {
             sb ??= new StringBuilder();
@@ -217,7 +204,7 @@ namespace MathUtilities {
             }
         }
 
-        void ShuntingYard(IEnumerable<Token> tokens) {
+        Token[] ShuntingYard(IEnumerable<Token> tokens) {
             try {
                 Token lastToken = default;
                 foreach (var token in tokens) {
@@ -264,11 +251,12 @@ namespace MathUtilities {
                             break;
                         default:
                             PushPreviousIdentifier(ref lastToken, false);
-                            if (!rtlOperators[(int)token.type])
+                            if ((precedences[(int)token.type] & 0x80) != 0)
                                 while (ops.Count > 0) {
                                     var top = ops.PeekLast();
-                                    if (precedences[(int)top.type] > precedences[(int)token.type] ||
-                                        top.type == TokenType.LeftParenthesis) break;
+                                    if (top.type == TokenType.LeftParenthesis ||
+                                        (precedences[(int)top.type] & 0x7F) > (precedences[(int)token.type] & 0x7F))
+                                        break;
                                     result.Add(top);
                                     ops.PopAndDiscard();
                                 }
@@ -287,7 +275,7 @@ namespace MathUtilities {
                             break;
                     }
                 }
-                this.tokens = result.Pop(result.Count).ToArray();
+                return result.Pop(result.Count).ToArray();
             } finally {
                 ops.Clear();
                 result.Clear();
@@ -307,46 +295,7 @@ namespace MathUtilities {
             lastToken = default;
         }
 
-        public override string ToString() {
-            if (tokens == null || tokens.Length <= 0) return "";
-            sb ??= new StringBuilder();
-            try {
-                foreach (var token in tokens)
-                    switch (token.type) {
-                        case TokenType.Unknown: sb.Append("? "); break;
-                        case TokenType.Primitive:
-                            sb.Append(token.numberValue).Append(' ');
-                            break;
-                        case TokenType.Identifier:
-                            sb.Append('`').Append(token.identifierValue).Append("` ");
-                            break;
-                        case TokenType.External:
-                            sb.Append(':').Append(token.identifierValue).Append(") ");
-                            break;
-                        case TokenType.LeftParenthesis:
-                            sb.Append('(');
-                            break;
-                        case TokenType.Comma:
-                            sb.Append(',');
-                            break;
-                        case TokenType.RightParenthesis:
-                            sb.Append(") ");
-                            break;
-                        default:
-                            sb.Append('~').Append(token.type).Append(' ');
-                            break;
-                    }
-                return sb.ToString();
-            } finally {
-                sb.Clear();
-            }
-        }
-
         protected abstract TNumber ParseNumber(string value);
-
-        enum ParseType : byte {
-            Unknown, Number, NumberWithDot, Identifier, Operator,
-        }
 
         [Serializable]
         public struct Token : IEquatable<Token> {
@@ -389,18 +338,22 @@ namespace MathUtilities {
                     return hashCode;
                 }
             }
-            public override string ToString() {
-                switch (type) {
-                    case TokenType.Primitive: return $"[{typeof(TNumber).Name}] {numberValue}";
-                    case TokenType.Identifier: return $"[Identifier] {identifierValue}";
-                    case TokenType.External: return $"[External] {identifierValue}";
-                    default: return $"[{type}]";
-                }
-            }
+
+            public override readonly string ToString() => type switch {
+                TokenType.Primitive => $"[{typeof(TNumber).Name}] {numberValue}",
+                TokenType.Identifier => $"[Identifier] {identifierValue}",
+                TokenType.External => $"[External] {identifierValue}",
+                _ => $"[{type}]",
+            };
+
             public static bool operator ==(Token left, Token right) => left.Equals(right);
 
             public static bool operator !=(Token left, Token right) => !left.Equals(right);
         }
+    }
+
+    internal enum ParseType : byte {
+        Unknown, Number, NumberWithDot, Identifier, Operator,
     }
 
     public enum TokenType : byte {

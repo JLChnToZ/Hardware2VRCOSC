@@ -9,24 +9,24 @@ using System.Threading;
 namespace MathUtilities {
     #region interfaces
     /// <summary>An <see cref="IEnumerable{T}"/> interface with <see cref="IEnumerable"/> (Non-generic) implemented.</summary>
-    public interface IUnionEnumerable<out T> : IEnumerable<T> {
+    public interface IEnumerableImpl<out T> : IEnumerable<T> {
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     /// <summary>An <see cref="IEnumerator{T}"/> interface with <see cref="IEnumerator"/> (Non-generic) implemented.</summary>
-    public interface IUnionEnumerator<out T> : IEnumerator<T> {
+    public interface IEnumeratorImpl<out T> : IEnumerator<T> {
         object? IEnumerator.Current => Current;
     }
 
     /// <summary>An enumerator that could be directly used in <c>foreach</c> loop.</summary>
-    public interface IEnumerableEnumerator<out T> : IUnionEnumerable<T>, IUnionEnumerator<T> {
+    public interface IEnumerableEnumerator<out T> : IEnumerableImpl<T>, IEnumeratorImpl<T> {
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => this;
 
         void IDisposable.Dispose() { }
     }
 
     /// <summary>An <see cref="ICollection{T}"/> interface with <see cref="ICollection"/> (Non-generic) and <see cref="IReadOnlyCollection{T}"/> implemented.</summary>
-    public interface IUnionCollection<T> : IUnionEnumerable<T>, ICollection<T>, IReadOnlyCollection<T>, ICollection {
+    public interface ICollectionImpl<T> : IEnumerableImpl<T>, ICollection<T>, IReadOnlyCollection<T>, ICollection {
         int ICollection.Count => (this as ICollection<T>).Count;
 
         int IReadOnlyCollection<T>.Count => (this as ICollection<T>).Count;
@@ -35,7 +35,7 @@ namespace MathUtilities {
     }
 
     /// <summary>An <see cref="IList{T}"/> interface with <see cref="IList"/> (Non-generic) and <see cref="IReadOnlyList{T}"/> implemented.</summary>
-    public interface IUnionList<T> : IUnionCollection<T>, IList<T>, IReadOnlyList<T>, IList {
+    public interface IListImpl<T> : ICollectionImpl<T>, IList<T>, IReadOnlyList<T>, IList {
         bool IList.IsReadOnly => (this as IList<T>).IsReadOnly;
 
         T IReadOnlyList<T>.this[int index] => (this as IList<T>)[index];
@@ -44,7 +44,7 @@ namespace MathUtilities {
             get => (this as IList<T>)[index];
             set => (this as IList<T>)[index] = (T)value!;
         }
-
+      
         bool ICollection<T>.Contains(T item) => IndexOf(item) >= 0;
 
         int IList.Add(object? value) {
@@ -60,14 +60,14 @@ namespace MathUtilities {
         void IList.Insert(int index, object? value) => Insert(index, (T)value!);
 
         void IList.Remove(object? value) {
-            if (value is T item) Remove(item);
+            if (!Remove((T)value!)) throw new ArgumentException("The specified item is not found in the list.", nameof(value));
         }
 
         void IList.RemoveAt(int index) => (this as IList<T>).RemoveAt(index);
     }
 
     /// <summary>Abstracts a bidirectional deque.</summary>
-    public interface IDeque<T> : IUnionList<T> {
+    public interface IDeque<T> : IListImpl<T> {
         /// <summary>Gets or sets the capacity of the deque.</summary>
         int Capacity { get; set; }
 
