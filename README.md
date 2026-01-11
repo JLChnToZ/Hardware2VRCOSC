@@ -2,36 +2,13 @@
 
 This is a simple tool that could constantly sends hardware status of your computer rig to VRChat via OSC channels, so that you can synchronize these status to your own avatars. It is powered by [Libre Hardware Monitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (A fork of Open Hardware Monitor). It supports every hardware what Libre Hardware Monitor supports, including loads, temperatures of CPU, GPU, RAM, fan, water cooling, etc. Additionally, it can be also configurated to send datetime information, useful for gadget like watches.
 
-To use it, just double-click the exe-file, and it will appears as a console window. You can then copy the listed OSC channel path of your desired hardware information to the input section of parameters in the [config json file of your avatar](https://docs.vrchat.com/docs/osc-avatar-parameters) (assume you have already prepare float parameters for receiving such data in your avatar), and you are ready to use. Alternatively, instead of modifying the JSON file, you can set an alias to the channel path, for example, you want your GPU temperature redirects to `gpu_temp` parameter of your avatar, you can add an entry to `channelAliases` section in the `config.yml` like this:
-
-```yaml
-channelAliases:
-  /hardwares/*gpu/0/temperature/0: /avatar/parameters/gpu_temp
-```
-
-If you see theres some channels says "ignored" and you want to use those, or even you want some other types of hardware to be sent, you may need to edit `config.yml` besides the exe file. While editing, you can leave the program running and it will auto refreshes when you saves it.
-
-Here are the available options in the config file:
+To use it, just double-click the exe-file, and it will appears as a console window. If there's no config file, it will generate one for you. Here are the available options in the config file:
 - `ipAddress`: The IP address of your VRChat client, if it is the same machine, leave it `127.0.0.1`
 - `port`: The OSC listening port of your VRChat client, default is `9000`, no need to change it unless you changed that for your client.
 - `updateInterval`: The interval between updates in milliseconds, default is `1000`
-- `ram`: Should RAM be monitored (`true`/`false`)
-- `mainboard`: Should mother board be monitored (`true`/`false`)
-- `cpu`: Should CPU be monitored (`true`/`false`)
-- `gpu`: Should GPU be monitored (`true`/`false`)
-- `hdd`: Should harddrives be monitored (`true`/`false`)
-- `fanController`: Should fan controllers be monitored (`true`/`false`)
-- `network`: Should network card be monitored (`true`/`false`)
-- `psu`: Should power supply unit be monitored (`true`/`false`)
-- `patternConfigs`: You can adjusts the configuration by sent channel paths, it matches using glob (*).
-    - `ignored`: The channel will not be sent if this is `true`
-    - `min`: The minimum readings to be sent
-    - `max`: The maximum readings to be sent, if `min` and `max` both are set, it will remaps the value to `0`-`1` (this is intentional for VRChat syncing parameters)
-    - `stepped`: It will rounds the value to nearest integer before remaps it if this is `true`.
-- `channelAliases`: Alternatively you can set an alias for specific channel output path, it also matches using glob (*).
-- `expressions`: You can mix and match all hardware channels with math expressions like this (replaces `/` to `.`, glob is not supported):
+- `addresses:`: You can mix and match all hardware channels with math expressions like this:
   ```yaml
-    /avatar/parameters/something_fancy: '(hardwares.intelcpu.0.load.1 + hardwares.intelcpu.0.load.2) / 2'
+    /avatar/parameters/something_fancy: '(intelcpu.0.load.1 + intelcpu.0.load.2) / 2'
   ```
   Above will send cpu #1 and #2 average load to `something_fancy` avatar parameter.  
   It also supports following math functions (case insensitive):  
@@ -80,7 +57,27 @@ Here are the available options in the config file:
     - `UtcTime.TimeOfDay`
     - `UtcTime.Timestamp`
 
-If you see channel default prefixes with `/hardwares/`, it will be a hardware realtime info; if it is prefixes with `/datetime/`, it is just datetime info provided by system clock.
+As an another example, here is how you can make it send [VRCWatch](https://github.com/mezum/vrcwatch)-Compatible OSC messages:
+```yaml
+skipAdminCheck: true
+ipAddress: 127.0.0.1
+port: 9000
+updateInterval: 500
+addresses:
+  /avatar/parameters/DateTimeYear: LocalTime.Year
+  /avatar/parameters/DateTimeMonth: LocalTime.Month
+  /avatar/parameters/DateTimeDay: LocalTime.Day
+  /avatar/parameters/DateTimeHour: floor(LocalTime.TimeOfDay * 24)
+  /avatar/parameters/DateTimeMinute: floor(LocalTime.TimeOfDay * 1440 % 60)
+  /avatar/parameters/DateTimeSecond: floor(LocalTime.TimeOfDay * 86400 % 60)
+  /avatar/parameters/DateTimeHourF: floor(LocalTime.TimeOfDay * 24) / 24
+  /avatar/parameters/DateTimeMinuteF: floor(LocalTime.TimeOfDay * 1440 % 60) / 60
+  /avatar/parameters/DateTimeSecondF: floor(LocalTime.TimeOfDay * 86400 % 60) / 60
+  /avatar/parameters/DateTimeDayTime: LocalTime.TimeOfDay
+  /avatar/parameters/DateTimeHourFA: LocalTime.TimeOfDay
+  /avatar/parameters/DateTimeMinuteFA: LocalTime.TimeOfDay * 1440 % 60 / 60
+  /avatar/parameters/DateTimeSecondFA: LocalTime.TimeOfDay * 86400 % 60 / 60
+```
 
 ## License
 
