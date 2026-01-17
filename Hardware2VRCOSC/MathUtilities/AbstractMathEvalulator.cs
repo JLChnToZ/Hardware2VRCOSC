@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace MathUtilities {
@@ -144,14 +145,12 @@ namespace MathUtilities {
         protected bool RegisterProcessor(TokenType type, Func<Token, TNumber>? processor, bool overrideExisting = true) {
             if (processor == null) throw new ArgumentNullException(nameof(processor));
             tokenProcessors ??= new Func<Token, TNumber>[256];
-            if (tokenProcessors[(int)type] != null) {
-                if (!overrideExisting) return false;
-                tokenProcessors[(int)type] = processor;
-            } else
-                tokenProcessors[(int)type] = processor;
+            if (tokenProcessors[(int)type] != null && !overrideExisting) return false;
+            tokenProcessors[(int)type] = processor;
             return true;
         }
 
+        [DynamicDependency(DynamicallyAccessedMemberTypes.NonPublicMethods, typeof(AbstractMathEvalulator<>))]
         public virtual void RegisterDefaultFunctions() {
             foreach (var methodInfo in GetType().GetMethods(
                 BindingFlags.Static |

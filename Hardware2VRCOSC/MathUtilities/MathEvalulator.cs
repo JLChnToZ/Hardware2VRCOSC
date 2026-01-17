@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace MathUtilities {
     public class MathEvalulator : AbstractMathEvalulator<double> {
@@ -19,6 +20,12 @@ namespace MathUtilities {
         protected override double ParseNumber(string value) => double.Parse(value);
 
         protected override bool IsTruely(double value) => value != 0 && !double.IsNaN(value);
+
+        // We need to override this method to add [DynamicDependency] attribute,
+        // so that the methods marked with [Processor] are not stripped away by the linker.
+        [DynamicDependency(DynamicallyAccessedMemberTypes.NonPublicMethods, typeof(MathEvalulator))]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override void RegisterDefaultFunctions() => base.RegisterDefaultFunctions();
 
         #region Operators
         [SuppressMessage("Style", "IDE0051:Remove unused private members", Justification = "Used by reflection")]
@@ -125,13 +132,11 @@ namespace MathUtilities {
 
         [SuppressMessage("Style", "IDE0051:Remove unused private members", Justification = "Used by reflection")]
         [Processor("atan")]
-        static double Atan(Span<double> args) {
-            return args.Length switch {
-                1 => Math.Atan(args[0]),
-                2 => Math.Atan2(args[0], args[1]),
-                _ => double.NaN,
-            };
-        }
+        static double Atan(Span<double> args) => args.Length switch {
+            1 => Math.Atan(args[0]),
+            2 => Math.Atan2(args[0], args[1]),
+            _ => double.NaN,
+        };
 
         [SuppressMessage("Style", "IDE0051:Remove unused private members", Justification = "Used by reflection")]
         [Processor("sinh")] static double Sinh(Span<double> args) => Math.Sinh(args[0]);
