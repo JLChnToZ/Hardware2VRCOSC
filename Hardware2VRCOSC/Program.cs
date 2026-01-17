@@ -11,8 +11,8 @@ using System.Collections.Generic;
 [assembly: AssemblyDescription("Quick an dirty helper application for sending hardware real-time information (load, temperature, memory usage, date time, etc.) to VRChat via OSC.")]
 [assembly: AssemblyCompany("Explosive Theorem Lab.")]
 [assembly: AssemblyCopyright("Copyright © 2023-2026 Jeremy Lam (JLChnToZ). Licensed under MIT License.")]
-[assembly: AssemblyFileVersion("0.1.0.0")]
-[assembly: AssemblyInformationalVersion("0.1.0")]
+[assembly: AssemblyFileVersion("0.1.1.0")]
+[assembly: AssemblyInformationalVersion("0.1.1")]
 
 namespace Hardware2VRCOSC {
     internal static class Program {
