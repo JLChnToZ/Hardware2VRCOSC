@@ -10,7 +10,6 @@ using LibreHardwareMonitor.Hardware;
 using MathUtilities;
 
 using ExprToken = MathUtilities.AbstractMathEvalulator<double>.Token;
-using System.Diagnostics;
 
 namespace Hardware2VRCOSC {
     public class RedirectorV2 : IDisposable {
